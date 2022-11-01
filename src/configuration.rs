@@ -1,24 +1,63 @@
-use anyhow::{Result, bail};
-use serde::{Deserialize, Deserializer};
-use std::path::{PathBuf, Path};
-use std::str::FromStr;
+use anyhow::{bail, Result};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::path::{Path, PathBuf};
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "PascalCase")]
+use crate::ini::IniFile;
+
 pub struct MuleConfiguration {
-    #[serde(deserialize_with = "de_string")]
-    app_version: String,
-    #[serde(rename = "Nick")]
-    nickname: String,
-    confirm_exit: bool
+    raw_lines: Vec<String>,
+    parsed_lines: IniFile,
+}
+
+impl MuleConfiguration {
+    fn get_str(&self, section: &str, key: &str) -> &str {
+        self.get_str_opt(section, key).unwrap()
+    }
+
+    fn get_str_opt(&self, section: &str, key: &str) -> Option<&str> {
+        self.parsed_lines
+            .get_entry_in_section(section, key)
+            .and_then(|e| Some(e.get_value()))
+    }
+
+    fn get_bool(&self, section: &str, key: &str) -> bool {
+        self.get_bool_opt(section, key).unwrap()
+    }
+
+    fn get_bool_opt(&self, section: &str, key: &str) -> Option<bool> {
+        match self.get_str_opt(section, key) {
+            Some("1") => Some(true),
+            Some(_) => Some(false),
+            None => None,
+        }
+    }
+
+    pub fn app_version(&self) -> &str {
+        self.get_str("eMule", "AppVersion")
+    }
+
+    pub fn nickname(&self) -> &str {
+        self.get_str("eMule", "Nick")
+    }
+
+    pub fn confirm_exit(&self) -> bool {
+        self.get_bool("eMule", "ConfirmExit")
+    }
 }
 
 pub fn read_mule_configuration(config_dir: &Path) -> Result<MuleConfiguration> {
     let mut pb = config_dir.to_path_buf();
     pb.push("amule.conf");
-    let file_contents = std::fs::read_to_string(&pb)?;
-    let conf = toml_edit::de::from_str(&file_contents)?;
-    Ok(conf)
+    let f = File::open(&pb)?;
+    let reader = BufReader::new(f);
+    let raw_lines = reader.lines().collect::<std::io::Result<Vec<String>>>()?;
+    let parsed_lines = IniFile::new(raw_lines.clone());
+
+    Ok(MuleConfiguration {
+        raw_lines,
+        parsed_lines,
+    })
 }
 
 /// Finds the directory that holds all the configuration information.
@@ -26,7 +65,7 @@ pub fn read_mule_configuration(config_dir: &Path) -> Result<MuleConfiguration> {
 pub fn get_configuration_directory() -> Result<PathBuf> {
     let home_dir = match dirs::home_dir() {
         Some(pb) => pb,
-        None => bail!("Cannot determine home directory")
+        None => bail!("Cannot determine home directory"),
     };
 
     let mut hd = home_dir.clone();
