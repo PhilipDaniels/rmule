@@ -5,44 +5,66 @@ use std::path::{Path, PathBuf};
 
 use crate::ini::IniFile;
 
-pub struct MuleConfiguration {
-    raw_lines: Vec<String>,
-    parsed_lines: IniFile,
+const CONFIG_DIR: &str  = ".rMule";
+const CONFIG_FILENAME: &str = "rmule.conf";
+
+/// Finds the directory that holds all the configuration information
+/// for rMule. We have our own directory, separate from aMule/eMule.
+/// The directory may not exist (and may even be a file).
+pub fn get_configuration_directory() -> Result<PathBuf> {
+    let mut cfg_dir = match dirs::config_dir() {
+        Some(pb) => pb,
+        None => bail!("Cannot determine home directory"),
+    };
+
+    cfg_dir.push(CONFIG_DIR);
+    Ok(cfg_dir)
 }
 
-impl MuleConfiguration {
-    fn get_str(&self, section: &str, key: &str) -> &str {
-        self.get_str_opt(section, key).unwrap()
-    }
+/// Check to see if the configuration directory exists.
+pub fn configuration_dir_exists(config_dir: &Path) -> Result<bool> {
+    Ok(config_dir.try_exists()?)
+}
 
-    fn get_str_opt(&self, section: &str, key: &str) -> Option<&str> {
-        self.parsed_lines
-            .get_entry_in_section(section, key)
-            .and_then(|e| Some(e.get_value()))
-    }
-
-    fn get_bool(&self, section: &str, key: &str) -> bool {
-        self.get_bool_opt(section, key).unwrap()
-    }
-
-    fn get_bool_opt(&self, section: &str, key: &str) -> Option<bool> {
-        match self.get_str_opt(section, key) {
-            Some("1") => Some(true),
-            Some(_) => Some(false),
-            None => None,
+/// Creates the configuration directory if it does not exist. If it already
+/// exists, then it is checked to ensure that it is a directory and not a file
+/// or a symlink.
+pub fn ensure_configuration_directory_exists(config_dir: &Path) -> Result<()> {
+    if !configuration_dir_exists(config_dir)? {
+        std::fs::create_dir_all(&config_dir)?;
+    } else {
+        if !config_dir.is_dir() {
+            bail!("Configuration directory {} is not a directory", config_dir.to_string_lossy());
         }
     }
 
+    Ok(())
+}
+
+
+
+
+
+pub struct MuleConfiguration {
+    raw_lines: Vec<String>,
+    ini_data: IniFile,
+}
+
+impl MuleConfiguration {
     pub fn app_version(&self) -> &str {
-        self.get_str("eMule", "AppVersion")
+        self.ini_data.get_str("eMule", "AppVersion")
     }
 
     pub fn nickname(&self) -> &str {
-        self.get_str("eMule", "Nick")
+        self.ini_data.get_str("eMule", "Nick")
     }
 
     pub fn confirm_exit(&self) -> bool {
-        self.get_bool("eMule", "ConfirmExit")
+        self.ini_data.get_bool("eMule", "ConfirmExit")
+    }
+
+    pub fn port(&self) -> u16 {
+        self.ini_data.get_i32("eMule", "Port").try_into().unwrap()
     }
 }
 
@@ -56,23 +78,8 @@ pub fn read_mule_configuration(config_dir: &Path) -> Result<MuleConfiguration> {
 
     Ok(MuleConfiguration {
         raw_lines,
-        parsed_lines,
+        ini_data: parsed_lines,
     })
 }
 
-/// Finds the directory that holds all the configuration information.
-/// For now, very simple only works on my Linux :-)
-pub fn get_configuration_directory() -> Result<PathBuf> {
-    let home_dir = match dirs::home_dir() {
-        Some(pb) => pb,
-        None => bail!("Cannot determine home directory"),
-    };
 
-    let mut hd = home_dir.clone();
-    hd.push(".aMule");
-    if !hd.is_dir() {
-        bail!("Expected home directory {} does not exist", hd.display());
-    }
-
-    Ok(hd)
-}

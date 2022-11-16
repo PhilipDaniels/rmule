@@ -1,6 +1,3 @@
-use std::borrow::Borrow;
-use std::hash::Hash;
-
 use case_insensitive_hashmap::CaseInsensitiveHashMap;
 
 pub struct IniFile {
@@ -89,28 +86,46 @@ impl IniFile {
         self.sections.get(section)
     }
 
-    /// Gets a value in a section.
-    /// If the key is not found, the empty string is returned.
-    pub fn get_entry_in_section(&self, section: &str, key: &str) -> Option<&IniFileEntry> {
+    /// Gets an entry in a section.
+    /// If the key is not found, None is returned.
+    pub fn get_entry(&self, section: &str, key: &str) -> Option<&IniFileEntry> {
         self.get_section(section).and_then(|s| s.get(key))
     }
 
-    /// Gets a value in a section, or the default if not found.
-    pub fn get_value_or_default<'a, 'b, 'c, 'd: 'a>(
-        &'a self,
-        section: &'b str,
-        key: &'c str,
-        default: &'d str,
-    ) -> &'a str {
-        match self.sections.get(section) {
-            Some(section) => match section.get(key) {
-                Some(value) => &value.value,
-                None => default,
-            },
-            None => default,
+    pub fn get_str(&self, section: &str, key: &str) -> &str {
+        self.get_str_opt(section, key).unwrap()
+    }
+
+    pub fn get_str_opt(&self, section: &str, key: &str) -> Option<&str> {
+        self.get_entry(section, key)
+            .and_then(|e| Some(e.get_value()))
+    }
+
+    pub fn get_bool(&self, section: &str, key: &str) -> bool {
+        self.get_bool_opt(section, key).unwrap()
+    }
+
+    pub fn get_bool_opt(&self, section: &str, key: &str) -> Option<bool> {
+        match self.get_str_opt(section, key) {
+            Some("1") => Some(true),
+            Some(_) => Some(false),
+            None => None,
         }
     }
+
+    pub fn get_i32(&self, section: &str, key: &str) -> i32 {
+        self.get_i32_opt(section, key).unwrap()
+    }
+
+    pub fn get_i32_opt(&self, section: &str, key: &str) -> Option<i32> {
+        self.get_str_opt(section, key)
+            .and_then(|value| value.parse().ok())
+    }
     
+
+
+
+
     fn parse_lines(lines: &[String]) -> CaseInsensitiveHashMap<IniFileSection>{
         let mut sections = CaseInsensitiveHashMap::new();
         let mut current_section = IniFileSection::new(Self::ROOT_SECTION);
