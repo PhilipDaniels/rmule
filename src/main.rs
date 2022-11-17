@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 use anyhow::Result;
+use configuration::MuleConfiguration;
 
 mod configuration;
-mod ini;
+//mod ini;
 mod times;
 
 fn main() -> Result<()> {
@@ -30,7 +31,7 @@ fn main() -> Result<()> {
 
     // If this argument is specified, print the dir and then exit.
     if args.contains("--print-config-dir") {
-        match configuration::configuration_dir_exists(&config_dir)? {
+        match configuration::configuration_directory_exists(&config_dir)? {
             true => println!("{} (exists)", config_dir.to_string_lossy()),
             false => println!("{} (does not exist, will be created)", config_dir.to_string_lossy()),
         }
@@ -39,8 +40,8 @@ fn main() -> Result<()> {
     }
 
     if args.contains("--reset-config") {
-        configuration::backup_configuration_file(&config_dir)?;
-        //configuration::reset_configuration_file();
+        configuration::backup_configuration(&config_dir)?;
+        configuration::save_configuration(&config_dir, &MuleConfiguration::default())?;
     }
 
     // If anything remains it means at least one invalid argument was passed.
@@ -50,7 +51,8 @@ fn main() -> Result<()> {
     }
 
     configuration::ensure_configuration_directory_exists(&config_dir)?;
-
+    let mule_config = configuration::load_configuration(&config_dir)?;
+    
     // let mule_configuration = configuration::read_mule_configuration(&config_dir)?;
     // println!("app_version={:?}", mule_configuration.app_version());
     // println!("nickname={:?}", mule_configuration.nickname());

@@ -1,9 +1,6 @@
 use anyhow::{bail, Result};
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-
-use crate::ini::IniFile;
+use serde::{Serialize, Deserialize};
 use crate::times;
 
 const CONFIG_DIR: &str  = ".rMule";
@@ -24,7 +21,7 @@ pub fn get_configuration_directory() -> Result<PathBuf> {
 }
 
 /// Check to see if the configuration directory exists.
-pub fn configuration_dir_exists(config_dir: &Path) -> Result<bool> {
+pub fn configuration_directory_exists(config_dir: &Path) -> Result<bool> {
     Ok(config_dir.try_exists()?)
 }
 
@@ -33,7 +30,7 @@ pub fn configuration_dir_exists(config_dir: &Path) -> Result<bool> {
 /// or a symlink. Also we attempt to make the directory writable
 /// if it is currently read-only.
 pub fn ensure_configuration_directory_exists(config_dir: &Path) -> Result<()> {
-    if !configuration_dir_exists(config_dir)? {
+    if !configuration_directory_exists(config_dir)? {
         std::fs::create_dir_all(&config_dir)?;
     } else {
         if !config_dir.is_dir() {
@@ -51,11 +48,16 @@ pub fn ensure_configuration_directory_exists(config_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+fn get_configuration_filename(config_dir: &Path) -> PathBuf {
+    let mut pb = config_dir.to_owned();
+    pb.push(CONFIG_FILENAME);
+    pb
+}
+
 /// Backs up the configuration file, if it exists. If it does not exist
 /// then the function does nothing.
-pub fn backup_configuration_file(config_dir: &Path) -> Result<()> {
-    let mut current_config_file = config_dir.to_owned();
-    current_config_file.push(CONFIG_FILENAME);
+pub fn backup_configuration(config_dir: &Path) -> Result<()> {
+    let current_config_file = get_configuration_filename(config_dir);
     
     if current_config_file.try_exists()? {
         let mut backup_config_file = config_dir.to_owned();
@@ -93,8 +95,41 @@ fn delete_old_configuration_backups(config_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Saves the configuration to the configuration file.
+pub fn save_configuration(config_dir: &Path, configuration: &MuleConfiguration) -> Result<()> {
+    let toml = toml::to_string_pretty(configuration)?;
+    let filename = get_configuration_filename(config_dir);
+    std::fs::write(&filename, &toml)?;
+    Ok(())
+}
+
+/// Loads the configuration from the configuration file.
+pub fn load_configuration(config_dir: &Path) -> Result<MuleConfiguration> {
+    let filename = get_configuration_filename(config_dir);
+    let config_file_contents = std::fs::read_to_string(filename)?;
+    let config = toml::from_str(&config_file_contents)?;
+    Ok(config)
+}
 
 
+
+/// Holds the main configuration settings for rMule.
+/// Most of these fields are pulled from rmule.conf.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MuleConfiguration {
+    nickname: String
+}
+
+impl Default for MuleConfiguration {
+    fn default() -> Self {
+        Self {
+            nickname: "http://www.aMule.org".to_owned()
+        }
+    }
+}
+
+
+/*
 pub struct MuleConfiguration {
     raw_lines: Vec<String>,
     ini_data: IniFile,
@@ -131,5 +166,4 @@ pub fn read_mule_configuration(config_dir: &Path) -> Result<MuleConfiguration> {
         ini_data: parsed_lines,
     })
 }
-
-
+*/
