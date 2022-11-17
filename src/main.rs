@@ -1,6 +1,4 @@
 use std::path::PathBuf;
-use std::thread;
-use std::time::Duration;
 use anyhow::Result;
 
 mod configuration;
@@ -8,8 +6,6 @@ mod ini;
 mod times;
 
 fn main() -> Result<()> {
-    times::create_background_date_thread();
-
     let mut args = pico_args::Arguments::from_env();
 
     if args.contains("--help") {
@@ -54,10 +50,6 @@ fn main() -> Result<()> {
     }
 
     configuration::ensure_configuration_directory_exists(&config_dir)?;
-
-    loop {
-        thread::sleep(Duration::from_secs(59));
-    }
 
     // let mule_configuration = configuration::read_mule_configuration(&config_dir)?;
     // println!("app_version={:?}", mule_configuration.app_version());
