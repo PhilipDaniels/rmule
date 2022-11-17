@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.66"
-case_insensitive_hashmap = "1.0.0"
-dirs = "4.0.0"
-pico-args = "0.5.0"
-serde = { version = "1.0.147", features = ["derive"] }
-time = { version = "0.3.17", features = [ ] }
+anyhow = "1.0"
+case_insensitive_hashmap = "1.0"
+dirs = "4.0"
+pico-args = "0.5"
+serde = { version = "1.0", features = ["derive"] }
+single-instance = "0.3"
+time = { version = "0.3", features = [ ] }
 toml = "0.5"

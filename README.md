@@ -8,4 +8,4 @@ Parse command line arguments
   --import-config DIR
 
 [ ] Run as a daemon (PID file needed)
-[ ] Single instance check
+

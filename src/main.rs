@@ -1,12 +1,18 @@
 use std::path::PathBuf;
-use anyhow::Result;
+use anyhow::{Result, bail};
 use configuration::MuleConfiguration;
+use single_instance::SingleInstance;
 
 mod configuration;
 //mod ini;
 mod times;
 
 fn main() -> Result<()> {
+    let instance = SingleInstance::new("rmule").unwrap();
+    if !instance.is_single() {
+        bail!("rmule is already running, only one instance can run at a time");
+    }
+
     let mut args = pico_args::Arguments::from_env();
 
     if args.contains("--help") {
@@ -53,11 +59,6 @@ fn main() -> Result<()> {
     configuration::ensure_configuration_directory_exists(&config_dir)?;
     let mule_config = configuration::load_configuration(&config_dir)?;
     
-    // let mule_configuration = configuration::read_mule_configuration(&config_dir)?;
-    // println!("app_version={:?}", mule_configuration.app_version());
-    // println!("nickname={:?}", mule_configuration.nickname());
-    // println!("confirm_exit={:?}", mule_configuration.confirm_exit());
-    // println!("port={:?}", mule_configuration.port());
     Ok(())
 }
 
