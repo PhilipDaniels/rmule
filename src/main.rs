@@ -3,12 +3,14 @@ use std::time::Duration;
 use anyhow::{Result, bail};
 use config_dir::ConfigDir;
 use mule_configuration::MuleConfiguration;
+use server::ServerList;
 use single_instance::SingleInstance;
 
 mod config_dir;
 mod mule_configuration;
 mod times;
 mod file;
+mod server;
 
 fn main() -> Result<()> {
     let mut args = pico_args::Arguments::from_env();
@@ -73,6 +75,8 @@ fn main() -> Result<()> {
     let mule_config = config_dir.load()?;
     file::ensure_directory_exists(&mule_config.temp_directory)?;
     file::ensure_directory_exists(&mule_config.incoming_directory)?;
+
+    let server_list = ServerList::load(config_dir.server_filename())?;
 
     while true {
         std::thread::sleep(Duration::from_millis(100));

@@ -7,31 +7,43 @@ use crate::times;
 pub struct ConfigDir {
     base_dir: PathBuf,
     config_filename: PathBuf,
+    server_filename: PathBuf,
 }
 
 impl ConfigDir {
     const CONFIG_DIR: &str  = "rMule";
     const CONFIG_FILENAME: &str = "rmule.conf";
     const CONFIG_BACKUP_PREFIX: &str = "rmule.conf-";
+    const SERVER_LIST_FILENAME: &str = "server.bin";
 
     pub fn new<P: Into<PathBuf>>(dir: P) -> Self {
         let dir = dir.into();
         let base_dir = dir.clone();
         let mut config_filename = dir.clone();
         config_filename.push(Self::CONFIG_FILENAME);
+        let mut server_filename = dir.clone();
+        server_filename.push(Self::SERVER_LIST_FILENAME);
 
         Self {
             base_dir,
-            config_filename
+            config_filename,
+            server_filename
         }
     }
 
+    /// Return the absolute path of the configuration directory.
     pub fn config_dir(&self) -> &Path {
         &self.base_dir
     }
 
+    /// Return the absolute path of the main rmule config file.
     pub fn config_filename(&self) -> &Path {
         &self.config_filename
+    }
+
+    /// Return the absolute path of the server list file.
+    pub fn server_filename(&self) -> &Path {
+        &self.server_filename
     }
 
     /// Backs up the configuration file, if it exists. If it does not exist

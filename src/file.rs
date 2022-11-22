@@ -2,13 +2,26 @@ use std::path::Path;
 
 use anyhow::{Result, bail};
 
-/// Check to see if the directory exists, and really is a directory.
-pub fn directory_exists(config_dir: &Path) -> Result<bool> {
-    if config_dir.try_exists()? {
-        if config_dir.is_dir() {
+/// Check to see if the file exists, and really is a file.
+pub fn file_exists(file: &Path) -> Result<bool> {
+    if file.try_exists()? {
+        if file.is_file() {
             Ok(true)
         } else {
-            bail!("{} is not a directory", config_dir.to_string_lossy())
+            bail!("{} is not a file", file.to_string_lossy())
+        }
+    } else {
+        Ok(false)
+    }
+}
+
+/// Check to see if the directory exists, and really is a directory.
+pub fn directory_exists(dir: &Path) -> Result<bool> {
+    if dir.try_exists()? {
+        if dir.is_dir() {
+            Ok(true)
+        } else {
+            bail!("{} is not a directory", dir.to_string_lossy())
         }
     } else {
         Ok(false)
@@ -21,7 +34,7 @@ pub fn directory_exists(config_dir: &Path) -> Result<bool> {
 pub fn ensure_directory_exists(dir: &Path) -> Result<()> {
     if dir.try_exists()? {
         if !dir.is_dir() {
-            bail!("The path {} is not a directory", dir.to_string_lossy());
+            bail!("{} is not a directory", dir.to_string_lossy())
         }
     } else {
         std::fs::create_dir_all(dir)?;
