@@ -17,4 +17,3 @@ Parse command line arguments
 [ ] Run as a daemon (PID file needed)
 [ ] Load server.met? Also see code on line 592 to auto-update the list.
 [ ] Load shared files (there seem to be two files?)
-
