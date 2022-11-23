@@ -98,18 +98,5 @@ impl ConfigDir {
         Ok(config)
     }
 
-    /// Finds the directory that holds all the configuration information
-    /// for rMule. We have our own directory, separate from aMule/eMule.
-    /// The directory may not exist (and may even be a file on disk, this
-    /// function does not check any of that, it just creates a PathBuf
-    /// with the correct path).
-    pub fn get_default_config_dir() -> Result<PathBuf> {
-        let mut cfg_dir = match dirs::config_dir() {
-            Some(pb) => pb,
-            None => bail!("Cannot determine home directory"),
-        };
-    
-        cfg_dir.push(Self::CONFIG_DIR);
-        Ok(cfg_dir)
-    }
+
 }

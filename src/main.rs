@@ -1,16 +1,16 @@
 use std::path::PathBuf;
 use std::time::Duration;
 use anyhow::{Result, bail};
-use config_dir::ConfigDir;
-use mule_configuration::MuleConfiguration;
-use server::ServerList;
+use configuration::Configuration;
 use single_instance::SingleInstance;
 
-mod config_dir;
-mod mule_configuration;
-mod times;
+//mod config_dir;
+//mod mule_configuration;
+//mod times;
 mod file;
-mod server;
+//mod server;
+
+mod configuration;
 
 fn main() -> Result<()> {
     let mut args = pico_args::Arguments::from_env();
@@ -37,34 +37,34 @@ fn main() -> Result<()> {
                 override_dir
             }
         },
-        None => ConfigDir::get_default_config_dir()?
+        None => get_default_config_dir()?
     };
-
-    let config_dir = ConfigDir::new(config_dir);
 
     // If this argument is specified, print the dir and then exit.
     if args.contains("--print-config-dir") {
-        match file::directory_exists(config_dir.config_dir())? {
-            true => println!("{} (exists)", config_dir.config_dir().to_string_lossy()),
-            false => println!("{} (does not exist, will be created)", config_dir.config_dir().to_string_lossy()),
+        match file::directory_exists(&config_dir)? {
+            true => println!("{} (exists)", config_dir.to_string_lossy()),
+            false => println!("{} (does not exist, will be created)", config_dir.to_string_lossy()),
         };
 
         return Ok(());
     }
 
     // This creates the directory, but no files within it.
-    file::ensure_directory_exists(config_dir.config_dir())?;
+    file::ensure_directory_exists(&config_dir)?;
     
-    if !config_dir.config_filename().try_exists()? {
-        let new_config = MuleConfiguration::new(config_dir.config_dir());
-        config_dir.save(&new_config)?;
-    }
+    let config = Configuration::load(&config_dir)?;
+    
+    // if !config_dir.config_filename().try_exists()? {
+    //     let new_config = MuleConfiguration::new(config_dir.config_dir());
+    //     config_dir.save(&new_config)?;
+    // }
 
-    if args.contains("--reset-config") {
-        config_dir.backup_configuration()?;
-        let new_config = MuleConfiguration::new(config_dir.config_dir());
-        config_dir.save(&new_config)?;
-    }
+    // if args.contains("--reset-config") {
+    //     config_dir.backup_configuration()?;
+    //     let new_config = MuleConfiguration::new(config_dir.config_dir());
+    //     config_dir.save(&new_config)?;
+    // }
 
     // If anything remains it means at least one invalid argument was passed.
     if !args.finish().is_empty() {
@@ -72,11 +72,11 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let mule_config = config_dir.load()?;
-    file::ensure_directory_exists(&mule_config.temp_directory)?;
-    file::ensure_directory_exists(&mule_config.incoming_directory)?;
+    // let mule_config = config_dir.load()?;
+    // file::ensure_directory_exists(&mule_config.temp_directory)?;
+    // file::ensure_directory_exists(&mule_config.incoming_directory)?;
 
-    let server_list = ServerList::load(config_dir.server_filename())?;
+    // let server_list = ServerList::load(config_dir.server_filename())?;
 
     while true {
         std::thread::sleep(Duration::from_millis(100));
@@ -93,4 +93,19 @@ fn print_usage() {
     eprintln!("      [--print-config-dir]    Print the effective configuration directory and exit");
     eprintln!("      [--reset-config]        Reset configuration to defaults");
     eprintln!("      [--import-config DIR]   Import configuration from DIR (e.g. from aMule or eMule)");
+}
+
+/// Finds the directory that holds all the configuration information
+/// for rMule. We have our own directory, separate from aMule/eMule.
+/// The directory may not exist (and may even be a file on disk, this
+/// function does not check any of that, it just creates a PathBuf
+/// with the correct path).
+pub fn get_default_config_dir() -> Result<PathBuf> {
+    let mut cfg_dir = match dirs::config_dir() {
+        Some(pb) => pb,
+        None => bail!("Cannot determine home directory"),
+    };
+
+    cfg_dir.push("rMule");
+    Ok(cfg_dir)
 }
