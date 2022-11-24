@@ -83,7 +83,6 @@ fn print_usage() {
     eprintln!("      [--config-dir DIR]      Specify a specific dir to read configuration from");
     eprintln!("      [--print-config-dir]    Print the effective configuration directory and exit");
     eprintln!("      [--reset-config]        Reset configuration to defaults");
-    eprintln!("      [--import-config DIR]   Import configuration from DIR (e.g. from aMule or eMule)");
 }
 
 /// Finds the directory that holds all the configuration information

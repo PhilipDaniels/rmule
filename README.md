@@ -6,13 +6,8 @@ amule.cpp/364
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
 
-
-
 Where can we use multi-threading?
 
-
-Parse command line arguments
-  --import-config DIR
 
 [ ] Run as a daemon (PID file needed)
 [ ] Load server.met? Also see code on line 592 to auto-update the list.
