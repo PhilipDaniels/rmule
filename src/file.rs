@@ -1,6 +1,7 @@
-use std::path::Path;
+use crate::times;
+use std::path::{Path, PathBuf};
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 
 /// Check to see if the file exists, and really is a file.
 pub fn file_exists(file: &Path) -> Result<bool> {
@@ -52,4 +53,75 @@ pub fn ensure_writable(path: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Constructs a backup filename for an existing file by appending a
+/// date-time string to the filename. This function will panic if
+/// passed something without a terminal filename.
+pub fn make_backup_filename<P: Into<PathBuf>>(path: P) -> PathBuf {
+    let mut original = path.into();
+
+    let new_file_name = format!(
+        "{}-{}",
+        original.file_name().unwrap().to_string_lossy(),
+        times::current_date_to_yyyy_mm_dd()
+    );
+
+    original.with_file_name(new_file_name)
+}
+
+/// Delete backups of files in 'directory' that begin with 'filename' and
+/// have our known date backup suffix. 'num_to_keep' specifies how many
+/// backups to retain; it can be zero.
+/// 
+/// Returns the number of files that were deleted.
+pub fn delete_backups<P, Q>(directory: P, filename: Q, num_to_keep: usize) -> Result<usize>
+where P: Into<PathBuf>, Q: Into<PathBuf>
+{
+    let directory = directory.into();
+    let filename: String = filename.into().to_string_lossy().into();
+    let mut num_deleted = 0;
+
+    let mut backups_to_delete = Vec::new();
+
+    for entry in directory.read_dir()? {
+         let path = entry?.path();
+         if path.is_file() {
+             if let Some(fname) = path.file_name() {
+                let fname: String = fname.to_string_lossy().into();
+               if fname.starts_with(&filename) && has_backup_suffix(&fname) {
+                    backups_to_delete.push(path);
+               }
+             }
+         }
+    }
+
+    backups_to_delete.sort();
+
+    for backup in backups_to_delete.into_iter().rev().skip(num_to_keep) {
+        std::fs::remove_file(backup)?;
+        num_deleted += 1;
+    }
+
+    Ok(num_deleted)
+}
+
+/// Check for suffix of -YYYY-MM-DD. No need to bring in regex crate for this.
+fn has_backup_suffix(filename: &str) -> bool {
+    if filename.len() < 11 {
+        return false;
+    }
+
+    let suffix: Vec<_> = filename[filename.len() - 11..].chars().collect();
+    suffix[0] == '-'
+        && suffix[1].is_ascii_digit()
+        && suffix[2].is_ascii_digit()
+        && suffix[3].is_ascii_digit()
+        && suffix[4].is_ascii_digit()
+        && suffix[5] == '-'
+        && suffix[6].is_ascii_digit()
+        && suffix[7].is_ascii_digit()
+        && suffix[8] == '-'
+        && suffix[9].is_ascii_digit()
+        && suffix[10].is_ascii_digit()
 }

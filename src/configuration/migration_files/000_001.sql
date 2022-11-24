@@ -1,7 +1,9 @@
--- Create the settings table and populate some initial values.
-CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
+-- Create the settings table and populate initial values.
+CREATE TABLE IF NOT EXISTS settings
+    (
+    downloaded_directory TEXT NOT NULL,
+    nick_name TEXT NOT NULL
+    );
 
-INSERT INTO settings(key, value) VALUES ('temp_directory', 'temp');
-INSERT INTO settings(key, value) VALUES ('downloaded_directory', 'downloaded');
-INSERT INTO settings(key, value) VALUES ('nick_name', 'http://www.rMule.org');
+INSERT INTO settings(downloaded_directory, nick_name) VALUES ('Downloaded', 'http://www.rMule.org');
 

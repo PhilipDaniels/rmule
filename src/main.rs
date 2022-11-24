@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 use std::time::Duration;
 use anyhow::{Result, bail};
-use configuration::Configuration;
+use configuration::{ConfigurationDb, Settings};
 use single_instance::SingleInstance;
 
 //mod config_dir;
 //mod mule_configuration;
-//mod times;
+mod times;
 mod file;
 //mod server;
 
@@ -53,28 +53,23 @@ fn main() -> Result<()> {
     // This creates the directory, but no files within it.
     file::ensure_directory_exists(&config_dir)?;
     
-    let config = Configuration::load(&config_dir)?;
+    if args.contains("--reset-config") {
+        ConfigurationDb::backup(&config_dir)?;
+        // Deleting is enough, because we create a
+        // new config db is one is not found.
+        ConfigurationDb::delete(&config_dir)?;
+    }
+
+    let config_db = ConfigurationDb::open(&config_dir)?;
     
-    // if !config_dir.config_filename().try_exists()? {
-    //     let new_config = MuleConfiguration::new(config_dir.config_dir());
-    //     config_dir.save(&new_config)?;
-    // }
-
-    // if args.contains("--reset-config") {
-    //     config_dir.backup_configuration()?;
-    //     let new_config = MuleConfiguration::new(config_dir.config_dir());
-    //     config_dir.save(&new_config)?;
-    // }
-
     // If anything remains it means at least one invalid argument was passed.
     if !args.finish().is_empty() {
         print_usage();
         return Ok(());
     }
 
-    // let mule_config = config_dir.load()?;
-    // file::ensure_directory_exists(&mule_config.temp_directory)?;
-    // file::ensure_directory_exists(&mule_config.incoming_directory)?;
+    let settings = Settings::load(&config_db);
+    file::ensure_directory_exists(&settings.incoming_directory)?;
 
     // let server_list = ServerList::load(config_dir.server_filename())?;
 
