@@ -1,4 +1,5 @@
 use crate::times;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Result};
@@ -64,7 +65,7 @@ pub fn make_backup_filename<P: Into<PathBuf>>(path: P) -> PathBuf {
     let new_file_name = format!(
         "{}-{}",
         original.file_name().unwrap().to_string_lossy(),
-        times::current_date_to_yyyy_mm_dd()
+        times::now_to_yyyy_mm_dd()
     );
 
     original.with_file_name(new_file_name)
@@ -124,4 +125,17 @@ fn has_backup_suffix(filename: &str) -> bool {
         && suffix[8] == '-'
         && suffix[9].is_ascii_digit()
         && suffix[10].is_ascii_digit()
+}
+
+/// Makes a guaranteed-absolute path from a filename that may or may not
+/// already be absolute. Returns a Cow::Borrowed if filename is already absolute,
+/// else returns a Cow::Owned.
+pub fn make_absolute<'a, 'b>(filename: &'a Path, directory: &'b Path) -> Cow<'a, Path> {
+    if filename.is_absolute() {
+        filename.into()
+    } else {
+        let mut d = directory.to_owned();
+        d.push(filename);
+        d.into()
+    }
 }

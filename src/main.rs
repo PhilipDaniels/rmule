@@ -68,14 +68,11 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let settings = Settings::load(&config_db);
-    file::ensure_directory_exists(&settings.incoming_directory)?;
+    let settings = Settings::load(&config_db)?;
+    file::ensure_directory_exists(&settings.downloaded_directory)?;
+    eprintln!("Settings = {:?}", settings);
 
     // let server_list = ServerList::load(config_dir.server_filename())?;
-
-    while true {
-        std::thread::sleep(Duration::from_millis(100));
-    }
 
     Ok(())
 }

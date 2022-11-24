@@ -1,8 +1,9 @@
 use anyhow::Result;
 use rusqlite::Connection;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-use crate::file;
+use crate::{file, times};
 
 mod migrations;
 mod sqlite_extensions;
@@ -10,7 +11,7 @@ mod sqlite_extensions;
 pub struct ConfigurationDb {
     pub config_dir: PathBuf,
     config_db_filename: PathBuf,
-    conn: Connection
+    conn: Connection,
 }
 
 impl ConfigurationDb {
@@ -31,7 +32,7 @@ impl ConfigurationDb {
         let mut cfg = Self {
             config_dir: config_dir.to_owned(),
             config_db_filename: filename,
-            conn
+            conn,
         };
 
         Ok(cfg)
@@ -57,7 +58,7 @@ impl ConfigurationDb {
         std::fs::remove_file(filename)?;
         Ok(())
     }
-    
+
     fn config_db_filename<P: Into<PathBuf>>(config_dir: P) -> PathBuf {
         let mut p = config_dir.into();
         p.push("rmule.sqlite");
@@ -75,32 +76,59 @@ impl ConfigurationDb {
     // }
 }
 
-
-
+#[derive(Debug)]
 pub struct Settings {
     pub downloaded_directory: PathBuf,
     pub nick_name: String,
 }
 
 impl Settings {
+    /// Loads the settings from the database.
     pub fn load(db: &ConfigurationDb) -> Result<Self> {
-        match db.conn.query_row(
-            "SELECT * FROM settings",
-            [],
-            |row| {
-                Ok(Self {
-                    downloaded_directory: row.get::<_, String>("downloaded_directory")?.into(),
-                    nick_name: row.get("nick_name")?,
-                })
-            }
-            )
-        {
-            Ok(value) => Ok(value),
-            Err(e) => bail!(e),
+        let mut settings = db.conn.query_row("SELECT * FROM settings", [], |row| {
+            Ok(Self {
+                downloaded_directory: row.get::<_, String>("downloaded_directory")?.into(),
+                nick_name: row.get("nick_name")?,
+            })
+        })?;
+
+        if settings.make_paths_absolute(&db.config_dir) {
+            settings.save(db)?;
         }
-   }
 
-    pub fn save(&self, db: &ConfigurationDb) {
+        Ok(settings)
+    }
 
+    /// Saves the settings to the database.
+    pub fn save(&self, db: &ConfigurationDb) -> Result<()> {
+        db.conn.execute(
+            r#"UPDATE settings SET
+                downloaded_directory = ?1,
+                nick_name = ?2,
+                updated = ?3
+            "#,
+            &[
+                &self.downloaded_directory.to_string_lossy().into_owned(),
+                &self.nick_name,
+                &times::now_to_sql()
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    /// Ensures that all the paths on any settings object are all absolute paths.
+    fn make_paths_absolute(&mut self, dir: &Path) -> bool {
+        let mut did_change = false;
+
+        match file::make_absolute(&self.downloaded_directory, dir) {
+            Cow::Borrowed(_) => {}
+            Cow::Owned(p) => {
+                self.downloaded_directory = p;
+                did_change = true;
+            }
+        }
+
+        did_change
     }
 }
