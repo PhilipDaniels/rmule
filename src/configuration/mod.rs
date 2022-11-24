@@ -29,7 +29,7 @@ impl ConfigurationDb {
 
         migrations::apply_database_migrations(&conn)?;
 
-        let mut cfg = Self {
+        let cfg = Self {
             config_dir: config_dir.to_owned(),
             config_db_filename: filename,
             conn,
@@ -107,7 +107,7 @@ impl Settings {
                 nick_name = ?2,
                 updated = ?3
             "#,
-            &[
+            [
                 &self.downloaded_directory.to_string_lossy().into_owned(),
                 &self.nick_name,
                 &times::now_to_sql()

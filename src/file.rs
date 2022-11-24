@@ -60,7 +60,7 @@ pub fn ensure_writable(path: &Path) -> Result<()> {
 /// date-time string to the filename. This function will panic if
 /// passed something without a terminal filename.
 pub fn make_backup_filename<P: Into<PathBuf>>(path: P) -> PathBuf {
-    let mut original = path.into();
+    let original = path.into();
 
     let new_file_name = format!(
         "{}-{}",
