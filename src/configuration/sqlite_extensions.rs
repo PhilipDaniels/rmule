@@ -1,6 +1,8 @@
 use anyhow::{bail, Result};
-use rusqlite::types::FromSql;
-use rusqlite::{Connection, Params};
+use rusqlite::types::{FromSql, FromSqlResult, ToSqlOutput};
+use rusqlite::{Connection, Params, ToSql};
+
+use crate::times;
 
 pub trait ConnectionExtensions {
     /// Execute a scalar query. The query is expected to return 1 row with 1 column,
@@ -33,5 +35,31 @@ impl ConnectionExtensions for Connection {
             [&table_name],
         )?;
         Ok(count == 1)
+    }
+}
+
+/// A type that represents timestamps as we hold them in SQLite.
+/// Can be easily serialized to and from the SQLite types.
+/// Since we are storing datetimes in SQLite as strings, this is
+/// easy (assuming nobody goes into the db and starts messing
+/// with the strings...). I will live with that.
+pub struct DatabaseTime(String);
+
+impl DatabaseTime {
+    pub fn now() -> Self {
+        Self(times::now_to_sql())
+    }
+}
+
+impl ToSql for DatabaseTime {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        Ok(ToSqlOutput::from(self.0.clone()))
+    }
+}
+
+impl FromSql for DatabaseTime {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        value.as_str()
+            .and_then(|s| FromSqlResult::Ok(Self(s.to_owned())))
     }
 }

@@ -8,6 +8,9 @@ amule.cpp/364
 
 Where can we use multi-threading?
 
+[ ] List of addresses before servers?
+[ ] List of servers. See ServerList.cpp for operations.
+
 
 [ ] Run as a daemon (PID file needed)
 [ ] Load server.met? Also see code on line 592 to auto-update the list.

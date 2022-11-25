@@ -1,13 +1,14 @@
 use std::path::PathBuf;
 use anyhow::{Result, bail};
-use configuration::{ConfigurationDb, Settings};
+use configuration::{ConfigurationDb};
 use single_instance::SingleInstance;
 
-//mod config_dir;
-//mod mule_configuration;
+use crate::configuration::AddressList;
+use crate::configuration::Settings;
+
 mod times;
 mod file;
-//mod server;
+
 
 mod configuration;
 
@@ -67,12 +68,16 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let settings = Settings::load(&config_db)?;
-    file::ensure_directory_exists(&settings.downloaded_directory)?;
-    eprintln!("Settings = {:?}", settings);
-
+    let mut settings = Settings::load(&config_db)?;
+    let address_list = AddressList::load(&config_db)?;
+    //let download_dirs = DownloadDirectoryList::load(&config_db)?;
     // let server_list = ServerList::load(config_dir.server_filename())?;
 
+    //file::ensure_directory_exists(&settings.downloaded_directory)?;
+    eprintln!("Settings = {:?}", settings);
+    settings.nick_name = "jkjlkj".to_owned();
+    settings.save(&config_db)?;
+    
     Ok(())
 }
 

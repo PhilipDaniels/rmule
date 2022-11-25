@@ -1,0 +1,33 @@
+use super::ConfigurationDb;
+use anyhow::Result;
+
+/// The rmule equivalent of addresses.dat from emule.
+/// This is a list of addresses from which server.met files
+/// can be downloaded.
+pub struct AddressList {
+    addresses: Vec<Address>,
+}
+
+/// An address from which a server.met file can be downloaded.
+pub struct Address {
+    pub url: String,
+    pub active: bool,
+}
+
+impl AddressList {
+    /// Load all addresses from the database.
+    pub fn load(db: &ConfigurationDb) -> Result<Self> {
+        let mut stmt = db.conn().prepare("SELECT active, url FROM address")?;
+
+        let address_iter = stmt.query_map([], |row| {
+            Ok(Address {
+                active: row.get("active")?,
+                url: row.get("url")?,
+            })
+        })?;
+
+        Ok(Self {
+            addresses: address_iter.flatten().collect(),
+        })
+    }
+}
