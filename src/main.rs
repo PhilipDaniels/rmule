@@ -75,8 +75,6 @@ fn main() -> Result<()> {
 
     //file::ensure_directory_exists(&settings.downloaded_directory)?;
     eprintln!("Settings = {:?}", settings);
-    settings.nick_name = "jkjlkj".to_owned();
-    settings.save(&config_db)?;
     
     Ok(())
 }

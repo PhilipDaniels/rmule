@@ -68,7 +68,7 @@ impl ConfigurationDb {
         &self.conn
     }
 
-    // pub fn conn_mut(&mut self) -> &mut Connection {
-    //     &mut self.conn
-    // }
+    pub fn conn_mut(&mut self) -> &mut Connection {
+        &mut self.conn
+    }
 }

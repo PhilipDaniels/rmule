@@ -1,3 +1,6 @@
+use std::ops::Deref;
+use std::path::PathBuf;
+
 use anyhow::{bail, Result};
 use rusqlite::types::{FromSql, FromSqlResult, ToSqlOutput};
 use rusqlite::{Connection, Params, ToSql};
@@ -61,5 +64,31 @@ impl FromSql for DatabaseTime {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         value.as_str()
             .and_then(|s| FromSqlResult::Ok(Self(s.to_owned())))
+    }
+}
+
+/// A type that represents a PathBuf as we hold them in SQLLite.
+/// In the database they are stored as strings.
+pub struct DatabasePathBuf(PathBuf);
+
+impl Deref for DatabasePathBuf {
+    type Target = PathBuf;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ToSql for DatabasePathBuf {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        let path_as_string: String = self.0.to_string_lossy().into();
+        Ok(ToSqlOutput::from(path_as_string))
+    }
+}
+
+impl FromSql for DatabasePathBuf {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> FromSqlResult<Self> {
+        value.as_str()
+            .and_then(|s| FromSqlResult::Ok(Self(s.into())))
     }
 }
