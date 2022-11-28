@@ -20,15 +20,18 @@ impl AddressList {
         let conn = db.conn();
         let mut stmt = conn.prepare("SELECT active, url FROM address")?;
 
-        let address_iter = stmt.query_map([], |row| {
-            Ok(Address {
-                active: row.get("active")?,
-                url: row.get("url")?,
-            })
-        })?;
+        let addresses: Vec<_> = stmt
+            .query_map([], |row| {
+                Ok(Address {
+                    active: row.get("active")?,
+                    url: row.get("url")?,
+                })
+            })?
+            .flatten()
+            .collect();
 
-        Ok(Self {
-            addresses: address_iter.flatten().collect(),
-        })
+        eprintln!("Loaded {} rows from address", addresses.len());
+
+        Ok(Self { addresses })
     }
 }

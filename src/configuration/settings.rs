@@ -29,6 +29,7 @@ impl Settings {
         {
             eprintln!("Settings: Saving to db after making 'default_completed_directory' absolute, is now {}",
                 settings.default_completed_directory.to_string_lossy());
+
             settings.save(db)?;
         }
 

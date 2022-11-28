@@ -1,14 +1,13 @@
-use std::path::PathBuf;
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use configuration::{ConfigurationDb, TempDirectoryList};
 use single_instance::SingleInstance;
+use std::path::PathBuf;
 
 use crate::configuration::AddressList;
 use crate::configuration::Settings;
 
-mod times;
 mod file;
-
+mod times;
 
 mod configuration;
 
@@ -36,15 +35,18 @@ fn main() -> Result<()> {
             } else {
                 override_dir
             }
-        },
-        None => get_default_config_dir()?
+        }
+        None => get_default_config_dir()?,
     };
 
     // If this argument is specified, print the dir and then exit.
     if args.contains("--print-config-dir") {
         match file::directory_exists(&config_dir)? {
             true => println!("{} (exists)", config_dir.to_string_lossy()),
-            false => println!("{} (does not exist, will be created)", config_dir.to_string_lossy()),
+            false => println!(
+                "{} (does not exist, will be created)",
+                config_dir.to_string_lossy()
+            ),
         };
 
         return Ok(());
@@ -52,7 +54,7 @@ fn main() -> Result<()> {
 
     // This creates the directory, but no files within it.
     file::ensure_directory_exists(&config_dir)?;
-    
+
     if args.contains("--reset-config") {
         ConfigurationDb::backup(&config_dir)?;
         // Deleting is enough, because we create a
@@ -61,21 +63,22 @@ fn main() -> Result<()> {
     }
 
     let config_db = ConfigurationDb::open(&config_dir)?;
-    
+
     // If anything remains it means at least one invalid argument was passed.
     if !args.finish().is_empty() {
         print_usage();
         return Ok(());
     }
 
-    let mut settings = Settings::load(&config_db)?;
+    let settings = Settings::load(&config_db)?;
     let address_list = AddressList::load(&config_db)?;
-    let temp_dirs = TempDirectoryList::load(&config_db)?;
-    // let server_list = ServerList::load(config_dir.server_filename())?;
+    let mut temp_dirs = TempDirectoryList::load(&config_db)?;
 
-    //file::ensure_directory_exists(&settings.downloaded_directory)?;
-    //eprintln!("Settings = {:?}", settings);
-    
+    temp_dirs.add("~/phil/downloads");
+    temp_dirs.add("~/phil/downloads");
+    temp_dirs.add("~/phil/temp");
+    temp_dirs.save(&config_db)?;
+
     Ok(())
 }
 

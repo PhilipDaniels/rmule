@@ -13,6 +13,8 @@ pub struct ConfigurationDb {
 }
 
 impl ConfigurationDb {
+    const CONFIG_DB_NAME: &str = "rmule_config.sqlite";
+
     /// Loads new configuration from disk. If the configuration database does
     /// not exist then a new one is created. If the database requires an upgrade,
     /// then that is applied first before the configuration is returned.
@@ -50,7 +52,7 @@ impl ConfigurationDb {
         if filename.try_exists()? {
             let backup_config_file = file::make_backup_filename(&filename);
             std::fs::copy(filename, backup_config_file)?;
-            let num_deleted = file::delete_backups(config_dir, "rmule.sqlite", 10)?;
+            let num_deleted = file::delete_backups(config_dir, Self::CONFIG_DB_NAME, 10)?;
             eprintln!("Deleted {} backups of rmule.sqlite", num_deleted);
         }
 
@@ -66,7 +68,7 @@ impl ConfigurationDb {
 
     fn config_db_filename<P: Into<PathBuf>>(config_dir: P) -> PathBuf {
         let mut p = config_dir.into();
-        p.push("rmule.sqlite");
+        p.push(Self::CONFIG_DB_NAME);
         p
     }
 

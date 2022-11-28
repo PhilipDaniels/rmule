@@ -59,14 +59,14 @@ static MIGRATIONS: [&str; 4] = [
     include_str!("migration_files/0003.sql"),
 ];
 
-pub fn get_database_version(conn: &Connection) -> Result<usize> {
+fn get_database_version(conn: &Connection) -> Result<usize> {
     match conn.query_row("SELECT version FROM version", [], |row| row.get(0)) {
         Ok(v) => Ok(v),
         Err(_) => Ok(0),
     }
 }
 
-pub fn set_database_version(conn: &Connection, version: usize) -> Result<()> {
+fn set_database_version(conn: &Connection, version: usize) -> Result<()> {
     match conn.execute("UPDATE version SET version = ?", [version]) {
         Ok(_) => Ok(()),
         Err(e) => bail!(e),

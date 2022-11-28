@@ -71,6 +71,7 @@ impl FromSql for DatabaseTime {
 
 /// A type that represents a PathBuf as we hold them in SQLite.
 /// In the database they are stored as strings.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct DatabasePathBuf(PathBuf);
 
 impl DatabasePathBuf {
@@ -107,5 +108,17 @@ impl FromSql for DatabasePathBuf {
         value
             .as_str()
             .and_then(|s| FromSqlResult::Ok(Self(s.into())))
+    }
+}
+
+impl From<PathBuf> for DatabasePathBuf {
+    fn from(rhs: PathBuf) -> Self {
+        Self(rhs)
+    }
+}
+
+impl From<&Path> for DatabasePathBuf {
+    fn from(rhs: &Path) -> Self {
+        Self(rhs.into())
     }
 }
