@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rusqlite::Connection;
+use rusqlite::{Connection, Transaction, TransactionBehavior};
 use std::path::{Path, PathBuf};
 use crate::file;
 
@@ -21,17 +21,21 @@ impl ConfigurationDb {
     pub fn open(config_dir: &Path) -> Result<Self> {
         let filename = Self::config_db_filename(config_dir);
 
+        eprintln!("Attempting to open configuration database {}", filename.display());
+
         // This will create an empty SQLite db if needed.
         let conn = Connection::open(&filename)?;
 
         migrations::apply_database_migrations(&conn)?;
+
+        eprintln!("Opened configuration database {}", filename.display());
 
         let cfg = Self {
             config_dir: config_dir.to_owned(),
             config_db_filename: filename,
             conn,
         };
-
+        
         Ok(cfg)
     }
 
@@ -68,7 +72,26 @@ impl ConfigurationDb {
         &self.conn
     }
 
-    pub fn conn_mut(&mut self) -> &mut Connection {
-        &mut self.conn
+    /// Executes a transaction in an indepdenent connection.
+    /// See [https://docs.rs/rusqlite/latest/rusqlite/struct.Transaction.html]
+    pub fn execute_in_independent_transaction<T, F>(&self, behaviour: TransactionBehavior, block: F) -> Result<T>
+    where F: FnOnce(Transaction) -> Result<T>
+    {
+        // We need a new mutable connection.
+        let mut new_conn = Connection::open(&self.config_db_filename)?;
+        let txn = Transaction::new(&mut new_conn, behaviour)?;
+        let result = block(txn)?;
+        Ok(result)
+    }
+
+    /// Executes a transaction on this connection.
+    /// Nested transactions are not possible.
+    /// See [https://docs.rs/rusqlite/latest/rusqlite/struct.Transaction.html]
+    pub fn execute_in_transaction<T, F>(&mut self, behaviour: TransactionBehavior, block: F) -> Result<T>
+    where F: FnOnce(&mut Transaction) -> Result<T>
+    {
+        let mut txn = Transaction::new(&mut self.conn, behaviour)?;
+        let result = block(&mut txn)?;
+        Ok(result)
     }
 }

@@ -35,12 +35,16 @@ pub fn apply_database_migrations(conn: &Connection) -> Result<()> {
 
 fn apply_migration(idx: usize, conn: &Connection, migration: &str) -> Result<()> {
     let msg = migration.lines().take(1).next();
+
     match msg {
         Some(msg) => {
+            // Trim off the start of the SQL comment (so we expect each script
+            // to start with a descriptive comment...)
+            let msg = &msg[3..];
             eprint!("Executing migration {}: {}", idx, msg);
             conn.execute_batch(migration)?;
             set_database_version(conn, idx + 1)?;
-            eprintln!(" SUCCESS");
+            eprintln!(" SUCCESS.");
         }
         None => panic!("Empty migration detected, number = {}", idx),
     }
@@ -48,10 +52,11 @@ fn apply_migration(idx: usize, conn: &Connection, migration: &str) -> Result<()>
     Ok(())
 }
 
-static MIGRATIONS: [&str; 3] = [
-    include_str!("migration_files/000_000.sql"),
-    include_str!("migration_files/000_001.sql"),
-    include_str!("migration_files/000_002.sql"),
+static MIGRATIONS: [&str; 4] = [
+    include_str!("migration_files/0000.sql"),
+    include_str!("migration_files/0001.sql"),
+    include_str!("migration_files/0002.sql"),
+    include_str!("migration_files/0003.sql"),
 ];
 
 pub fn get_database_version(conn: &Connection) -> Result<usize> {

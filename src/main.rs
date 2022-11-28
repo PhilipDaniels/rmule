@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use anyhow::{Result, bail};
-use configuration::{ConfigurationDb};
+use configuration::{ConfigurationDb, TempDirectoryList};
 use single_instance::SingleInstance;
 
 use crate::configuration::AddressList;
@@ -70,11 +70,11 @@ fn main() -> Result<()> {
 
     let mut settings = Settings::load(&config_db)?;
     let address_list = AddressList::load(&config_db)?;
-    //let download_dirs = DownloadDirectoryList::load(&config_db)?;
+    let temp_dirs = TempDirectoryList::load(&config_db)?;
     // let server_list = ServerList::load(config_dir.server_filename())?;
 
     //file::ensure_directory_exists(&settings.downloaded_directory)?;
-    eprintln!("Settings = {:?}", settings);
+    //eprintln!("Settings = {:?}", settings);
     
     Ok(())
 }

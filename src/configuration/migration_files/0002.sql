@@ -1,4 +1,4 @@
--- Create the address table and populate initial values.
+-- Create the address table.
 -- This table holds a list of URL from which server.met files can
 -- be downloaded. It is the equivalent of the addresses.dat file
 -- in amule. http://wiki.amule.org/wiki/Addresses.dat_file

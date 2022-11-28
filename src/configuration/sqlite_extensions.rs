@@ -1,11 +1,12 @@
+use std::borrow::Cow;
 use std::ops::Deref;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 
 use anyhow::{bail, Result};
 use rusqlite::types::{FromSql, FromSqlResult, ToSqlOutput};
 use rusqlite::{Connection, Params, ToSql};
 
-use crate::times;
+use crate::{times, file};
 
 pub trait ConnectionExtensions {
     /// Execute a scalar query. The query is expected to return 1 row with 1 column,
@@ -70,6 +71,20 @@ impl FromSql for DatabaseTime {
 /// A type that represents a PathBuf as we hold them in SQLLite.
 /// In the database they are stored as strings.
 pub struct DatabasePathBuf(PathBuf);
+
+impl DatabasePathBuf {
+    // Ensures that the path is absolute, placing it into a directory if necessary.
+    // Returns true if it was necessary to change the path.
+    pub fn make_absolute(&mut self, dir: &Path) -> bool {
+        match file::make_absolute(&self.0, dir) {
+            Cow::Borrowed(_) => false,
+            Cow::Owned(p) => {
+                self.0 = p;
+                true
+            }
+        }
+    }
+}
 
 impl Deref for DatabasePathBuf {
     type Target = PathBuf;
