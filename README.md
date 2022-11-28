@@ -15,10 +15,8 @@ Where can we use multi-threading?
 [ ] Run as a daemon (PID file needed)
 [ ] Load server.met? Also see code on line 592 to auto-update the list.
 [ ] Load shared files (there seem to be two files?)
-[ ] Use interior mutability for execute_in_independent_transaction? Or implement clone()?
-    - All these database writes will ultimately be on a single thread.
 [ ] Download and test server.met with nom
-
+[ ] Use "Downloads" directory from dirs crate for "completed directory"
 
 # Main crates used
 - [rusqlite](https://crates.io/crates/rusqlite) rMule stores its configuration in a SQLite database, and the temporary
@@ -31,6 +29,10 @@ Where can we use multi-threading?
 - [nom](https://crates.io/crates/nom) is used to parse legacy aMule/eMule file formats such as
     [server.met](http://wiki.amule.org/t/index.php?title=Server.met_file)
 - [pico-args](https://crates.io/crates/pico-args) is used to parse the command line arguments. They're simple, and there is no need for something as heavyweight as [clap](https://crates.io/crates/clap).
+
+
+rMule avoids bringing in crates where possible. For example, I don't use
+[diesel](https://crates.io/crates/diesel) for SQL access, and rMule has its own database migration system in less than 100 lines of code.
 
 
 https://crates.io/crates/tokio-console

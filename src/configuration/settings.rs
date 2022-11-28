@@ -27,8 +27,8 @@ impl Settings {
             .default_completed_directory
             .make_absolute(&db.config_dir)
         {
-            eprintln!("Settings: Saving to db after making 'default_completed_directory' absolute within {}",
-                db.config_dir.to_string_lossy());
+            eprintln!("Settings: Saving to db after making 'default_completed_directory' absolute, is now {}",
+                settings.default_completed_directory.to_string_lossy());
             settings.save(db)?;
         }
 
