@@ -1,5 +1,5 @@
-use super::ConfigurationDb;
 use super::sqlite_extensions::DatabasePathBuf;
+use super::ConfigurationDb;
 use anyhow::Result;
 use rusqlite::TransactionBehavior;
 
@@ -20,7 +20,8 @@ pub struct TempDirectory {
 impl TempDirectoryList {
     /// Load all download directories from the database.
     pub fn load(db: &ConfigurationDb) -> Result<Self> {
-        let mut stmt = db.conn().prepare("SELECT directory FROM temp_directory")?;
+        let conn = db.conn();
+        let mut stmt = conn.prepare("SELECT directory FROM temp_directory")?;
 
         let temp_dir_iter = stmt.query_map([], |row| {
             Ok(TempDirectory {
@@ -34,9 +35,8 @@ impl TempDirectoryList {
     }
 
     pub fn save(&self, db: &ConfigurationDb) -> Result<()> {
-        db.execute_in_independent_transaction(TransactionBehavior::Deferred, |txn| {
+        db.execute_in_transaction(TransactionBehavior::Deferred, |txn| {
             txn.execute("DELETE temp_directory", [])?;
-
 
             Ok(())
         })?;

@@ -1,12 +1,12 @@
 use std::borrow::Cow;
 use std::ops::Deref;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Result};
 use rusqlite::types::{FromSql, FromSqlResult, ToSqlOutput};
 use rusqlite::{Connection, Params, ToSql};
 
-use crate::{times, file};
+use crate::{file, times};
 
 pub trait ConnectionExtensions {
     /// Execute a scalar query. The query is expected to return 1 row with 1 column,
@@ -63,12 +63,13 @@ impl ToSql for DatabaseTime {
 
 impl FromSql for DatabaseTime {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-        value.as_str()
+        value
+            .as_str()
             .and_then(|s| FromSqlResult::Ok(Self(s.to_owned())))
     }
 }
 
-/// A type that represents a PathBuf as we hold them in SQLLite.
+/// A type that represents a PathBuf as we hold them in SQLite.
 /// In the database they are stored as strings.
 pub struct DatabasePathBuf(PathBuf);
 
@@ -103,7 +104,8 @@ impl ToSql for DatabasePathBuf {
 
 impl FromSql for DatabasePathBuf {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> FromSqlResult<Self> {
-        value.as_str()
+        value
+            .as_str()
             .and_then(|s| FromSqlResult::Ok(Self(s.into())))
     }
 }

@@ -17,7 +17,8 @@ pub struct Address {
 impl AddressList {
     /// Load all addresses from the database.
     pub fn load(db: &ConfigurationDb) -> Result<Self> {
-        let mut stmt = db.conn().prepare("SELECT active, url FROM address")?;
+        let conn = db.conn();
+        let mut stmt = conn.prepare("SELECT active, url FROM address")?;
 
         let address_iter = stmt.query_map([], |row| {
             Ok(Address {
