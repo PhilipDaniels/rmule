@@ -4,7 +4,9 @@ use super::sqlite_extensions::{DatabasePathBuf, DatabaseTime};
 use super::ConfigurationDb;
 use anyhow::Result;
 use rusqlite::params;
+use tracing::info;
 
+#[derive(Debug, Clone)]
 pub struct Settings {
     pub nick_name: String,
     /// When a download is started it is written to
@@ -39,7 +41,7 @@ impl Settings {
         let mut num_made_abs = 0;
 
         if self.default_completed_directory.make_absolute(within_dir) {
-            eprintln!(
+            info!(
                 "Settings: Made 'default_completed_directory' absolute, is now {}",
                 self.default_completed_directory.to_string_lossy()
             );
@@ -57,14 +59,10 @@ impl Settings {
                 default_completed_directory = ?2,
                 updated = ?3
             "#,
-            params![
-                self.nick_name,
-                self.default_completed_directory,
-                DatabaseTime::now()
-            ],
+            params![self.nick_name, self.default_completed_directory, DatabaseTime::now()],
         )?;
 
-        eprintln!("Saved Settings to the settings table");
+        info!("Saved Settings to the settings table");
         Ok(())
     }
 }

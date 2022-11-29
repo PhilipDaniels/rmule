@@ -4,6 +4,7 @@ use super::sqlite_extensions::DatabasePathBuf;
 use super::ConfigurationDb;
 use anyhow::{bail, Result};
 use rusqlite::{params, TransactionBehavior};
+use tracing::info;
 
 /// The rmule equivalent of the "temp directory" setting from emule.
 /// rmule supports multiple temp directories, which can help with
@@ -20,12 +21,10 @@ impl TempDirectoryList {
         let conn = db.conn();
         let mut stmt = conn.prepare("SELECT directory FROM temp_directory")?;
 
-        let mut directories: Vec<DatabasePathBuf> = stmt
-            .query_map([], |row| Ok(row.get("directory")?))?
-            .flatten()
-            .collect();
+        let mut directories: Vec<DatabasePathBuf> =
+            stmt.query_map([], |row| Ok(row.get("directory")?))?.flatten().collect();
 
-        eprintln!("Loaded {} rows from temp_directory", directories.len());
+        info!("Loaded {} rows from temp_directory", directories.len());
 
         Ok(Self { directories })
     }
@@ -45,10 +44,7 @@ impl TempDirectoryList {
 
         for dir in &mut self.directories {
             if dir.make_absolute(within_dir) {
-                eprintln!(
-                    "Made temp_directory absolute, is now {}",
-                    dir.to_string_lossy()
-                );
+                info!("Made temp_directory absolute, is now {}", dir.to_string_lossy());
                 num_made_abs += 1;
             }
         }
@@ -71,7 +67,7 @@ impl TempDirectoryList {
             stmt.finalize()?;
             txn.commit()?;
 
-            eprintln!("Saved {} rows to temp_directory", self.directories.len());
+            info!("Saved {} rows to temp_directory", self.directories.len());
             Ok(())
         })?;
 
@@ -99,7 +95,7 @@ impl TempDirectoryList {
 
         let dir = dir.into();
         if !self.directories.contains(&dir) {
-            eprintln!("Adding temp_directory {}", dir.to_string_lossy());
+            info!("Adding temp_directory {}", dir.to_string_lossy());
             self.directories.push(dir);
             self.directories.sort();
             Ok(1)

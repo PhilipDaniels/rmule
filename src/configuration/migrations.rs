@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use rusqlite::Connection;
+use tracing::info;
 
 use super::sqlite_extensions::ConnectionExtensions;
 
@@ -10,24 +11,20 @@ pub fn apply_database_migrations(conn: &Connection) -> Result<()> {
         Err(_) => 0,
     };
 
-    eprintln!("db_version is {}", db_version);
+    info!("db_version is {}", db_version);
 
     // If db_version is 0 it means the 'version' table does not exist. We therefore
     // want to run the first migration, which creates it. And so on.
     let mut num_migrations = 0;
-    for (idx, &mig) in MIGRATIONS
-        .iter()
-        .enumerate()
-        .filter(|(idx, _)| *idx >= db_version)
-    {
+    for (idx, &mig) in MIGRATIONS.iter().enumerate().filter(|(idx, _)| *idx >= db_version) {
         apply_migration(idx, conn, mig)?;
         num_migrations += 1;
     }
 
     match num_migrations {
-        0 => eprintln!("Database is up to date"),
-        1 => eprintln!("Applied 1 migration"),
-        _ => eprintln!("Applied {num_migrations} migrations"),
+        0 => info!("Database is up to date"),
+        1 => info!("Applied 1 migration"),
+        _ => info!("Applied {num_migrations} migrations"),
     }
 
     Ok(())
@@ -41,10 +38,10 @@ fn apply_migration(idx: usize, conn: &Connection, migration: &str) -> Result<()>
             // Trim off the start of the SQL comment (so we expect each script
             // to start with a descriptive comment...)
             let msg = &msg[3..];
-            eprint!("Executing migration {}: {}", idx, msg);
+            info!("Executing migration {}: {}", idx, msg);
             conn.execute_batch(migration)?;
             set_database_version(conn, idx + 1)?;
-            eprintln!(" SUCCESS.");
+            info!(" SUCCESS.");
         }
         None => panic!("Empty migration detected, number = {}", idx),
     }

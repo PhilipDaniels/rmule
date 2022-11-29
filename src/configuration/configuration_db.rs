@@ -1,57 +1,12 @@
-use crate::file;
 use anyhow::Result;
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use std::cell::{Ref, RefCell};
 use std::path::{Path, PathBuf};
-use tokio::sync::broadcast::Sender;
-use tokio::sync::mpsc::Receiver;
+use tracing::info;
+
+use super::super::file;
 
 use super::migrations;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum ConfigurationCommands {
-    Shutdown,
-}
-
-#[derive(Debug, Clone)]
-pub enum ConfigurationEvents {
-    InitComplete,
-}
-
-pub struct ConfigurationService {
-    events_sender: Sender<ConfigurationEvents>,
-    commands_receiver: Receiver<ConfigurationCommands>,
-}
-
-impl ConfigurationService {
-    pub fn new(
-        events_sender: Sender<ConfigurationEvents>,
-        commands_receiver: Receiver<ConfigurationCommands>,
-    ) -> Self {
-        Self {
-            events_sender,
-            commands_receiver,
-        }
-    }
-
-    pub async fn start(&mut self) -> Result<()> {
-        // Load things from the config db.
-
-        // Tell everybody we are ready.
-        self.events_sender.send(ConfigurationEvents::InitComplete)?;
-
-        // Wait for work and despatch it.
-        while let Some(cmd) = self.commands_receiver.recv().await {
-            if cmd == ConfigurationCommands::Shutdown {
-                self.shutdown();
-                break;
-            }
-        }
-        Ok(())
-    }
-
-    fn shutdown(&mut self) {}
-}
 
 pub struct ConfigurationDb {
     pub config_dir: PathBuf,
@@ -71,17 +26,14 @@ impl ConfigurationDb {
     pub fn open(config_dir: &Path) -> Result<Self> {
         let filename = Self::config_db_filename(config_dir);
 
-        eprintln!(
-            "Attempting to open configuration database {}",
-            filename.display()
-        );
+        info!("Attempting to open configuration database {}", filename.display());
 
         // This will create an empty SQLite db if needed.
         let conn = Connection::open(&filename)?;
 
         migrations::apply_database_migrations(&conn)?;
 
-        eprintln!("Opened configuration database {}", filename.display());
+        info!("Opened configuration database {}", filename.display());
 
         let cfg = Self {
             config_dir: config_dir.to_owned(),
@@ -99,16 +51,9 @@ impl ConfigurationDb {
         if filename.try_exists()? {
             let backup_config_file = file::make_backup_filename(&filename);
             std::fs::copy(filename, &backup_config_file)?;
-            eprintln!(
-                "Backed up config database to {}",
-                backup_config_file.to_string_lossy()
-            );
+            eprintln!("Backed up config database to {}", backup_config_file.to_string_lossy());
             let num_deleted = file::delete_backups(config_dir, Self::CONFIG_DB_NAME, 10)?;
-            eprintln!(
-                "Deleted {} backups of {}",
-                num_deleted,
-                Self::CONFIG_DB_NAME
-            );
+            eprintln!("Deleted {} backups of {}", num_deleted, Self::CONFIG_DB_NAME);
         }
 
         Ok(())
@@ -135,11 +80,7 @@ impl ConfigurationDb {
 
     /// Executes a transaction on this database.
     /// See [https://docs.rs/rusqlite/latest/rusqlite/struct.Transaction.html]
-    pub fn execute_in_transaction<T, F>(
-        &self,
-        behaviour: TransactionBehavior,
-        block: F,
-    ) -> Result<T>
+    pub fn execute_in_transaction<T, F>(&self, behaviour: TransactionBehavior, block: F) -> Result<T>
     where
         F: FnOnce(Transaction) -> Result<T>,
     {

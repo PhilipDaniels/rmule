@@ -51,3 +51,4 @@ https://crates.io/crates/tokio-console
 - Multiple UI windows may be opened to monitor the same running rMule.
 - The 'progress bar' for a download shows overall progress rather than
    chunked.
+

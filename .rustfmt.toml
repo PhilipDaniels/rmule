@@ -1,0 +1,5 @@
+# See https://gist.github.com/Robbepop/f88d896f859712384039813fab939172
+
+max_width = 120
+impl_empty_single_line = false
+fn_empty_single_line = false

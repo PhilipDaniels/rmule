@@ -71,7 +71,7 @@ impl FromSql for DatabaseTime {
 
 /// A type that represents a PathBuf as we hold them in SQLite.
 /// In the database they are stored as strings.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DatabasePathBuf(PathBuf);
 
 impl DatabasePathBuf {

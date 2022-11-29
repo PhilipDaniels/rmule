@@ -1,21 +1,13 @@
 use anyhow::{bail, Result};
-use configuration::{
-    ConfigurationCommands, ConfigurationDb, ConfigurationEvents, ConfigurationService,
-    TempDirectoryList,
-};
+use configuration::ConfigurationDb;
 use single_instance::SingleInstance;
 use std::path::PathBuf;
-use tokio::sync::{broadcast, mpsc};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
-use crate::configuration::AddressList;
-use crate::configuration::Settings;
-
+mod configuration;
 mod file;
 mod times;
-
-mod configuration;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -50,10 +42,7 @@ async fn main() -> Result<()> {
     if args.contains("--print-config-dir") {
         match file::directory_exists(&config_dir)? {
             true => println!("{} (exists)", config_dir.to_string_lossy()),
-            false => println!(
-                "{} (does not exist, will be created)",
-                config_dir.to_string_lossy()
-            ),
+            false => println!("{} (does not exist, will be created)", config_dir.to_string_lossy()),
         };
 
         return Ok(());
@@ -76,48 +65,12 @@ async fn main() -> Result<()> {
     }
 
     // Initialise the Tokio tracing system.
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::TRACE)
-        .finish();
+    let subscriber = FmtSubscriber::builder().with_max_level(Level::TRACE).finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
     info!("STARTING RMULE");
 
-    // Put the configuration service on its own task.
-    // We will communicate with it via message passing.
-    let config_db = ConfigurationDb::open(&config_dir)?;
-
-    // Channel used by other components to send commands to the Configuration Service.
-    let (config_commands_tx, config_commands_rx) = mpsc::channel::<ConfigurationCommands>(32);
-    // Channel used by the Configuration Service to send events out.
-    let (config_events_tx, config_events_rx) = broadcast::channel::<ConfigurationEvents>(32);
-
-    // The Configuration Service takes ownership of config_commands_rx and config_events_tx
-    tokio::spawn(async move {
-        let mut svc = ConfigurationService::new(config_events_tx, config_commands_rx);
-        svc.start();
-    });
-
-    /*
-    let mut settings = Settings::load(&config_db)?;
-    if settings.make_absolute(&config_db.config_dir) > 0 {
-        settings.save(&config_db)?;
-    }
-
-    let address_list = AddressList::load(&config_db)?;
-    let mut temp_dirs = TempDirectoryList::load(&config_db)?;
-    if temp_dirs.make_absolute(&config_db.config_dir) > 0 {
-        temp_dirs.save(&config_db)?;
-    }
-
-    let mut num_added = temp_dirs.add("/phil/downloads")?;
-    num_added += temp_dirs.add("/phil/downloads")?;
-    num_added += temp_dirs.add("/foo/temp")?;
-    if num_added > 0 {
-        temp_dirs.save(&config_db)?;
-    }
-    */
-
+    let (cfg_sender, cfg_receiver) = configuration::initialise_configuration_manager(&config_dir)?;
     Ok(())
 }
 

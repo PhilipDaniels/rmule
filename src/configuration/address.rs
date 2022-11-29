@@ -1,5 +1,6 @@
 use super::ConfigurationDb;
 use anyhow::Result;
+use tracing::info;
 
 /// The rmule equivalent of addresses.dat from emule.
 /// This is a list of addresses from which server.met files
@@ -30,7 +31,7 @@ impl AddressList {
             .flatten()
             .collect();
 
-        eprintln!("Loaded {} rows from address", addresses.len());
+        info!("Loaded {} rows from address", addresses.len());
 
         Ok(Self { addresses })
     }
