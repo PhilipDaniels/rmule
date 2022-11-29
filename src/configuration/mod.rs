@@ -45,8 +45,8 @@ pub async fn initialise_configuration_manager(
     let config_dir = config_dir.to_owned();
 
     tokio::spawn(async move {
-        let mut svc = ConfigurationManager::new(events_sender, command_receiver, config_dir);
-        svc.start().await?;
+        let mut mgr = ConfigurationManager::new(events_sender, command_receiver, config_dir);
+        mgr.start().await?;
         Ok::<(), anyhow::Error>(())
     });
 

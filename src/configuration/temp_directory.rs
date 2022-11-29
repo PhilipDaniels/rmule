@@ -21,7 +21,7 @@ impl TempDirectoryList {
         let conn = db.conn();
         let mut stmt = conn.prepare("SELECT directory FROM temp_directory")?;
 
-        let mut directories: Vec<DatabasePathBuf> =
+        let directories: Vec<DatabasePathBuf> =
             stmt.query_map([], |row| Ok(row.get("directory")?))?.flatten().collect();
 
         info!("Loaded {} rows from temp_directory", directories.len());

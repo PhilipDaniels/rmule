@@ -10,13 +10,12 @@ Where can we use multi-threading?
 
 [ ] List of addresses before servers?
 [ ] List of servers. See ServerList.cpp for operations.
-
-
 [ ] Run as a daemon (PID file needed)
 [ ] Load server.met? Also see code on line 592 to auto-update the list.
 [ ] Load shared files (there seem to be two files?)
 [ ] Download and test server.met with nom
 [ ] Use "Downloads" directory from dirs crate for "completed directory"
+
 
 # Main crates used
 - [rusqlite](https://crates.io/crates/rusqlite) rMule stores its configuration in a SQLite database, and the temporary

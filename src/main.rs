@@ -13,7 +13,7 @@ mod times;
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialise the Tokio tracing system.
-    let subscriber = FmtSubscriber::builder().with_max_level(Level::TRACE).finish();
+    let subscriber = FmtSubscriber::builder().compact().with_max_level(Level::TRACE).finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
     info!("STARTING RMULE");
@@ -71,8 +71,8 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    let (config_commands_tx, config_commands_rx) = configuration::make_command_channel();
-    let (config_events_tx, config_events_rx) = configuration::make_event_channel();
+    let (_config_commands_tx, config_commands_rx) = configuration::make_command_channel();
+    let (config_events_tx, _config_events_rx) = configuration::make_event_channel();
     configuration::initialise_configuration_manager(&config_dir, config_events_tx, config_commands_rx).await?;
 
     // Without this, the process will exit before the Configuration Manager background

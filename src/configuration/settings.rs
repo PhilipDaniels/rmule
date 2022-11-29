@@ -20,7 +20,7 @@ pub struct Settings {
 impl Settings {
     /// Loads the settings from the database.
     pub fn load(db: &ConfigurationDb) -> Result<Self> {
-        let mut settings = db.conn().query_row("SELECT * FROM settings", [], |row| {
+        let settings = db.conn().query_row("SELECT * FROM settings", [], |row| {
             Ok(Self {
                 nick_name: row.get("nick_name")?,
                 default_completed_directory: row.get("default_completed_directory")?,
