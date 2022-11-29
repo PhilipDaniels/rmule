@@ -4,8 +4,6 @@ use std::cell::{Ref, RefCell};
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-use super::super::file;
-
 use super::migrations;
 
 pub struct ConfigurationDb {
@@ -49,11 +47,11 @@ impl ConfigurationDb {
     pub fn backup(config_dir: &Path) -> Result<()> {
         let filename = Self::config_db_filename(config_dir);
         if filename.try_exists()? {
-            let backup_config_file = file::make_backup_filename(&filename);
+            let backup_config_file = crate::file::make_backup_filename(&filename);
             std::fs::copy(filename, &backup_config_file)?;
-            eprintln!("Backed up config database to {}", backup_config_file.to_string_lossy());
-            let num_deleted = file::delete_backups(config_dir, Self::CONFIG_DB_NAME, 10)?;
-            eprintln!("Deleted {} backups of {}", num_deleted, Self::CONFIG_DB_NAME);
+            info!("Backed up config database to {}", backup_config_file.to_string_lossy());
+            let num_deleted = crate::file::delete_backups(config_dir, Self::CONFIG_DB_NAME, 10)?;
+            info!("Deleted {} backups of {}", num_deleted, Self::CONFIG_DB_NAME);
         }
 
         Ok(())
