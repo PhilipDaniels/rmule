@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 use configuration::ConfigurationDb;
 use single_instance::SingleInstance;
 use std::path::PathBuf;
+use std::time::Duration;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -11,6 +12,12 @@ mod times;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Initialise the Tokio tracing system.
+    let subscriber = FmtSubscriber::builder().with_max_level(Level::TRACE).finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    info!("STARTING RMULE");
+
     let mut args = pico_args::Arguments::from_env();
 
     if args.contains("--help") {
@@ -64,13 +71,13 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    // Initialise the Tokio tracing system.
-    let subscriber = FmtSubscriber::builder().with_max_level(Level::TRACE).finish();
+    let (config_commands_tx, config_commands_rx) = configuration::make_command_channel();
+    let (config_events_tx, config_events_rx) = configuration::make_event_channel();
+    configuration::initialise_configuration_manager(&config_dir, config_events_tx, config_commands_rx).await?;
 
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-    info!("STARTING RMULE");
-
-    let (cfg_sender, cfg_receiver) = configuration::initialise_configuration_manager(&config_dir)?;
+    // Without this, the process will exit before the Configuration Manager background
+    // task has had chance to run and load all data.
+    std::thread::sleep(Duration::from_secs(5));
     Ok(())
 }
 
