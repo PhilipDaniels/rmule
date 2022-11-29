@@ -6,6 +6,8 @@ use configuration::{
 use single_instance::SingleInstance;
 use std::path::PathBuf;
 use tokio::sync::{broadcast, mpsc};
+use tracing::{info, Level};
+use tracing_subscriber::FmtSubscriber;
 
 use crate::configuration::AddressList;
 use crate::configuration::Settings;
@@ -72,6 +74,14 @@ async fn main() -> Result<()> {
         print_usage();
         return Ok(());
     }
+
+    // Initialise the Tokio tracing system.
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    info!("STARTING RMULE");
 
     // Put the configuration service on its own task.
     // We will communicate with it via message passing.
