@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use super::sqlite_extensions::{DatabasePathBuf, DatabaseTime};
 use super::ConfigurationDb;
 use anyhow::Result;
@@ -23,17 +25,28 @@ impl Settings {
             })
         })?;
 
-        if settings
-            .default_completed_directory
-            .make_absolute(&db.config_dir)
-        {
-            eprintln!("Settings: Saving to db after making 'default_completed_directory' absolute, is now {}",
-                settings.default_completed_directory.to_string_lossy());
+        Ok(settings)
+    }
 
-            settings.save(db)?;
+    /// Makes any paths found in the Settings into absolute ones.
+    ///
+    /// We have a post-condition that any paths returned from the configuration
+    /// db to the wider program will always be absolute paths, and this
+    /// method helps to enforce that.
+    ///
+    /// Returns the number of settings changed.
+    pub fn make_absolute(&mut self, within_dir: &Path) -> usize {
+        let mut num_made_abs = 0;
+
+        if self.default_completed_directory.make_absolute(within_dir) {
+            eprintln!(
+                "Settings: Made 'default_completed_directory' absolute, is now {}",
+                self.default_completed_directory.to_string_lossy()
+            );
+            num_made_abs += 1;
         }
 
-        Ok(settings)
+        num_made_abs
     }
 
     /// Saves the settings to the database.
@@ -51,6 +64,7 @@ impl Settings {
             ],
         )?;
 
+        eprintln!("Saved Settings to the settings table");
         Ok(())
     }
 }

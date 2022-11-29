@@ -3,8 +3,55 @@ use anyhow::Result;
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use std::cell::{Ref, RefCell};
 use std::path::{Path, PathBuf};
+use tokio::sync::broadcast::Sender;
+use tokio::sync::mpsc::Receiver;
 
 use super::migrations;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ConfigurationCommands {
+    Shutdown,
+}
+
+#[derive(Debug, Clone)]
+pub enum ConfigurationEvents {
+    InitComplete,
+}
+
+pub struct ConfigurationService {
+    events_sender: Sender<ConfigurationEvents>,
+    commands_receiver: Receiver<ConfigurationCommands>,
+}
+
+impl ConfigurationService {
+    pub fn new(
+        events_sender: Sender<ConfigurationEvents>,
+        commands_receiver: Receiver<ConfigurationCommands>,
+    ) -> Self {
+        Self {
+            events_sender,
+            commands_receiver,
+        }
+    }
+
+    pub async fn start(&mut self) -> Result<()> {
+        // Load things from the config db.
+
+        // Tell everybody we are ready.
+        self.events_sender.send(ConfigurationEvents::InitComplete)?;
+
+        // Wait for work and despatch it.
+        while let Some(cmd) = self.commands_receiver.recv().await {
+            if cmd == ConfigurationCommands::Shutdown {
+                self.shutdown();
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn shutdown(&mut self) {}
+}
 
 pub struct ConfigurationDb {
     pub config_dir: PathBuf,
@@ -51,9 +98,17 @@ impl ConfigurationDb {
         let filename = Self::config_db_filename(config_dir);
         if filename.try_exists()? {
             let backup_config_file = file::make_backup_filename(&filename);
-            std::fs::copy(filename, backup_config_file)?;
+            std::fs::copy(filename, &backup_config_file)?;
+            eprintln!(
+                "Backed up config database to {}",
+                backup_config_file.to_string_lossy()
+            );
             let num_deleted = file::delete_backups(config_dir, Self::CONFIG_DB_NAME, 10)?;
-            eprintln!("Deleted {} backups of rmule.sqlite", num_deleted);
+            eprintln!(
+                "Deleted {} backups of {}",
+                num_deleted,
+                Self::CONFIG_DB_NAME
+            );
         }
 
         Ok(())

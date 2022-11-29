@@ -39,10 +39,15 @@ https://crates.io/crates/tokio-console
 
 # Differences vs aMule/eMule
 
+## Backend
 - rMule stores its configuration and downloading files in SQLite databases rather than
   disk files. The files are cross-platform and easily moved to other computers.
 - rMule is written in Rust and can run on Linux, Windows and MacOS with one codebase.
 - Multiple temporary directories may be configured, which helps with distributing disk IO
   over multiple physical disks in the case that you don't have a RAID system.
 - The "download" folder may be specified when enqueing a download.
+
+## GUI
 - Multiple UI windows may be opened to monitor the same running rMule.
+- The 'progress bar' for a download shows overall progress rather than
+   chunked.

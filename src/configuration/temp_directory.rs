@@ -1,8 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::sqlite_extensions::DatabasePathBuf;
 use super::ConfigurationDb;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use rusqlite::{params, TransactionBehavior};
 
 /// The rmule equivalent of the "temp directory" setting from emule.
@@ -25,32 +25,39 @@ impl TempDirectoryList {
             .flatten()
             .collect();
 
-        let mut made_abs = false;
-        for dir in &mut directories {
-            if dir.make_absolute(&db.config_dir) {
+        eprintln!("Loaded {} rows from temp_directory", directories.len());
+
+        Ok(Self { directories })
+    }
+
+    /// Makes any paths found in the directories list into absolute ones.
+    /// This is not possible for paths added via the 'add' method because
+    /// it guards against relative paths, but for initial data inserted into
+    /// the database at migration time it can happen.
+    ///
+    /// We have a post-condition that any paths returned from the configuration
+    /// db to the wider program will always be absolute paths, and this
+    /// method helps to enforce that.
+    ///
+    /// Returns the number of directories changed.
+    pub fn make_absolute(&mut self, within_dir: &Path) -> usize {
+        let mut num_made_abs = 0;
+
+        for dir in &mut self.directories {
+            if dir.make_absolute(within_dir) {
                 eprintln!(
                     "Made temp_directory absolute, is now {}",
                     dir.to_string_lossy()
                 );
-                made_abs = true;
+                num_made_abs += 1;
             }
         }
 
-        // nasty
-        drop(stmt);
-        drop(conn);
-
-        let tdl = Self { directories };
-
-        if made_abs {
-            tdl.save(db)?;
-        }
-
-        eprintln!("Loaded {} rows from temp_directory", tdl.directories.len());
-
-        Ok(tdl)
+        num_made_abs
     }
 
+    /// Saves the temp directory list to the database. The entire list is
+    /// saved in one transaction.
     pub fn save(&self, db: &ConfigurationDb) -> Result<()> {
         db.execute_in_transaction(TransactionBehavior::Deferred, |txn| {
             txn.execute("DELETE FROM temp_directory", [])?;
@@ -62,8 +69,8 @@ impl TempDirectoryList {
             }
 
             stmt.finalize()?;
-
             txn.commit()?;
+
             eprintln!("Saved {} rows to temp_directory", self.directories.len());
             Ok(())
         })?;
@@ -72,10 +79,32 @@ impl TempDirectoryList {
     }
 
     /// Adds a new directory to the list but only if it is not already in
-    /// the list.
-    pub fn add<P: Into<PathBuf>>(&mut self, dir: P) {
-        let dir = dir.into().into();
-        self.directories.push(dir);
-        self.directories.dedup();
+    /// the list. The directory must be absolute - an error is returned
+    /// if it isn't.
+    ///
+    /// Returns 1 if the directory is added, 0 otherwise.
+    ///
+    /// # Remarks
+    /// You might think that the function could return a bool, and you
+    /// would be right, but that makes it very easy to introduce bugs
+    /// in the calling code via boolean shortcircuiting evaluation.
+    /// e.g.
+    ///     let added = added || temp_dirs.add("foo")?;
+    /// will never add 'foo' if added is already true.
+    pub fn add<P: Into<PathBuf>>(&mut self, dir: P) -> Result<usize> {
+        let dir: PathBuf = dir.into();
+        if !dir.is_absolute() {
+            bail!("Directory {} is not absolute", dir.to_string_lossy());
+        }
+
+        let dir = dir.into();
+        if !self.directories.contains(&dir) {
+            eprintln!("Adding temp_directory {}", dir.to_string_lossy());
+            self.directories.push(dir);
+            self.directories.sort();
+            Ok(1)
+        } else {
+            Ok(0)
+        }
     }
 }

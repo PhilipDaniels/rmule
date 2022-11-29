@@ -1,7 +1,11 @@
 use anyhow::{bail, Result};
-use configuration::{ConfigurationDb, TempDirectoryList};
+use configuration::{
+    ConfigurationCommands, ConfigurationDb, ConfigurationEvents, ConfigurationService,
+    TempDirectoryList,
+};
 use single_instance::SingleInstance;
 use std::path::PathBuf;
+use tokio::sync::{broadcast, mpsc};
 
 use crate::configuration::AddressList;
 use crate::configuration::Settings;
@@ -11,7 +15,8 @@ mod times;
 
 mod configuration;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let mut args = pico_args::Arguments::from_env();
 
     if args.contains("--help") {
@@ -62,22 +67,46 @@ fn main() -> Result<()> {
         ConfigurationDb::delete(&config_dir)?;
     }
 
-    let config_db = ConfigurationDb::open(&config_dir)?;
-
     // If anything remains it means at least one invalid argument was passed.
     if !args.finish().is_empty() {
         print_usage();
         return Ok(());
     }
 
-    let settings = Settings::load(&config_db)?;
+    // Put the configuration service on its own task.
+    // We will communicate with it via message passing.
+    let config_db = ConfigurationDb::open(&config_dir)?;
+
+    // Channel used by other components to send commands to the Configuration Service.
+    let (config_commands_tx, config_commands_rx) = mpsc::channel::<ConfigurationCommands>(32);
+    // Channel used by the Configuration Service to send events out.
+    let (config_events_tx, config_events_rx) = broadcast::channel::<ConfigurationEvents>(32);
+
+    // The Configuration Service takes ownership of config_commands_rx and config_events_tx
+    tokio::spawn(async move {
+        let mut svc = ConfigurationService::new(config_events_tx, config_commands_rx);
+        svc.start();
+    });
+
+    /*
+    let mut settings = Settings::load(&config_db)?;
+    if settings.make_absolute(&config_db.config_dir) > 0 {
+        settings.save(&config_db)?;
+    }
+
     let address_list = AddressList::load(&config_db)?;
     let mut temp_dirs = TempDirectoryList::load(&config_db)?;
+    if temp_dirs.make_absolute(&config_db.config_dir) > 0 {
+        temp_dirs.save(&config_db)?;
+    }
 
-    temp_dirs.add("~/phil/downloads");
-    temp_dirs.add("~/phil/downloads");
-    temp_dirs.add("~/phil/temp");
-    temp_dirs.save(&config_db)?;
+    let mut num_added = temp_dirs.add("/phil/downloads")?;
+    num_added += temp_dirs.add("/phil/downloads")?;
+    num_added += temp_dirs.add("/foo/temp")?;
+    if num_added > 0 {
+        temp_dirs.save(&config_db)?;
+    }
+    */
 
     Ok(())
 }
