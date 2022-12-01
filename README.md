@@ -15,6 +15,10 @@ Where can we use multi-threading?
 [ ] Load shared files (there seem to be two files?)
 [ ] Download and test server.met with nom
 [ ] Use "Downloads" directory from dirs crate for "completed directory"
+[ ] Caching.
+  [ ] X minutes.
+  [ ] If an entire file arrives without needing flushing to db we can write the whole
+      thing to the destination without needing to write to db first.
 
 
 # Main crates used

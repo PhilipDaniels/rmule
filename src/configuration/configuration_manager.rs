@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Result;
 use tokio::sync::broadcast::Sender;
@@ -14,7 +15,7 @@ pub enum ConfigurationCommands {
 #[derive(Debug, Clone)]
 pub enum ConfigurationEvents {
     InitComplete,
-    SettingsChange(Settings), // Try Arc<Settings> and remove Clone
+    SettingsChange(Arc<Settings>),
 }
 
 pub struct ConfigurationManager {
@@ -29,11 +30,7 @@ impl ConfigurationManager {
         commands_receiver: Receiver<ConfigurationCommands>,
         config_dir: PathBuf,
     ) -> Self {
-        Self {
-            config_dir: config_dir.into(),
-            events_sender,
-            commands_receiver,
-        }
+        Self { config_dir: config_dir.into(), events_sender, commands_receiver }
     }
 
     pub async fn start(&mut self) -> Result<()> {
@@ -62,7 +59,7 @@ impl ConfigurationManager {
             settings.save(&config_db)?;
         }
 
-        self.events_sender.send(ConfigurationEvents::SettingsChange(settings))?;
+        self.events_sender.send(ConfigurationEvents::SettingsChange(Arc::new(settings)))?;
 
         let address_list = AddressList::load(&config_db)?;
 

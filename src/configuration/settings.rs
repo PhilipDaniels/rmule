@@ -6,7 +6,7 @@ use anyhow::Result;
 use rusqlite::params;
 use tracing::info;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Settings {
     pub nick_name: String,
     /// When a download is started it is written to

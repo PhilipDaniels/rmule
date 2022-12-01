@@ -9,9 +9,10 @@ use rusqlite::{Connection, Params, ToSql};
 use crate::{file, times};
 
 pub trait ConnectionExtensions {
-    /// Execute a scalar query. The query is expected to return 1 row with 1 column,
-    /// the value in that cell is returned to the user. (The query can actually return
-    /// more than 1 column, but the others will be ignored.)
+    /// Execute a scalar query. The query is expected to return 1 row with 1
+    /// column, the value in that cell is returned to the user. (The query
+    /// can actually return more than 1 column, but the others will be
+    /// ignored.)
     fn execute_scalar<T, P>(&self, sql: &str, params: P) -> Result<T>
     where
         P: Params,
@@ -34,10 +35,8 @@ impl ConnectionExtensions for Connection {
     }
 
     fn table_exists(&self, table_name: &str) -> Result<bool> {
-        let count: usize = self.execute_scalar(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?",
-            [&table_name],
-        )?;
+        let count: usize =
+            self.execute_scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", [&table_name])?;
         Ok(count == 1)
     }
 }
@@ -63,9 +62,7 @@ impl ToSql for DatabaseTime {
 
 impl FromSql for DatabaseTime {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-        value
-            .as_str()
-            .and_then(|s| FromSqlResult::Ok(Self(s.to_owned())))
+        value.as_str().and_then(|s| FromSqlResult::Ok(Self(s.to_owned())))
     }
 }
 
@@ -105,9 +102,7 @@ impl ToSql for DatabasePathBuf {
 
 impl FromSql for DatabasePathBuf {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> FromSqlResult<Self> {
-        value
-            .as_str()
-            .and_then(|s| FromSqlResult::Ok(Self(s.into())))
+        value.as_str().and_then(|s| FromSqlResult::Ok(Self(s.into())))
     }
 }
 

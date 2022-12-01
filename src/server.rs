@@ -38,14 +38,12 @@ impl ServerList {
     /// The servers from the server.toml file are loaded first,
     /// then the static servers from staticservers.toml are loaded.
     pub fn load(filename: &Path) -> Result<Self> {
-        let mut servers = Self {
-            servers: Vec::new(),
-        };
+        let mut servers = Self { servers: Vec::new() };
 
         if file::file_exists(filename)? {
             // Deserialize as bincode.
         }
-        
+
         Ok(servers)
     }
 

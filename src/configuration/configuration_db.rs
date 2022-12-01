@@ -16,8 +16,9 @@ impl ConfigurationDb {
     const CONFIG_DB_NAME: &str = "rmule_config.sqlite";
 
     /// Loads new configuration from disk. If the configuration database does
-    /// not exist then a new one is created. If the database requires an upgrade,
-    /// then that is applied first before the configuration is returned.
+    /// not exist then a new one is created. If the database requires an
+    /// upgrade, then that is applied first before the configuration is
+    /// returned.
     ///
     /// This function should be called at startup, once it has run then
     /// the database is accessed by individual methods as needed.
@@ -33,11 +34,7 @@ impl ConfigurationDb {
 
         info!("Opened configuration database {}", filename.display());
 
-        let cfg = Self {
-            config_dir: config_dir.to_owned(),
-            config_db_filename: filename,
-            conn: RefCell::new(conn),
-        };
+        let cfg = Self { config_dir: config_dir.to_owned(), config_db_filename: filename, conn: RefCell::new(conn) };
 
         Ok(cfg)
     }

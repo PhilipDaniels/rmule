@@ -11,6 +11,7 @@ use tracing::info;
 /// spreading disk IO across multiple devices, in case you don't have a
 /// RAID array. They must be unique though, there is no point in having
 /// multiple temp directories pointing to the same physical directory.
+#[derive(Debug)]
 pub struct TempDirectoryList {
     directories: Vec<DatabasePathBuf>,
 }

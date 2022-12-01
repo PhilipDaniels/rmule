@@ -62,11 +62,7 @@ pub fn ensure_writable(path: &Path) -> Result<()> {
 pub fn make_backup_filename<P: Into<PathBuf>>(path: P) -> PathBuf {
     let original = path.into();
 
-    let new_file_name = format!(
-        "{}-{}",
-        original.file_name().unwrap().to_string_lossy(),
-        times::now_to_yyyy_mm_dd()
-    );
+    let new_file_name = format!("{}-{}", original.file_name().unwrap().to_string_lossy(), times::now_to_yyyy_mm_dd());
 
     original.with_file_name(new_file_name)
 }
@@ -74,10 +70,12 @@ pub fn make_backup_filename<P: Into<PathBuf>>(path: P) -> PathBuf {
 /// Delete backups of files in 'directory' that begin with 'filename' and
 /// have our known date backup suffix. 'num_to_keep' specifies how many
 /// backups to retain; it can be zero.
-/// 
+///
 /// Returns the number of files that were deleted.
 pub fn delete_backups<P, Q>(directory: P, filename: Q, num_to_keep: usize) -> Result<usize>
-where P: Into<PathBuf>, Q: Into<PathBuf>
+where
+    P: Into<PathBuf>,
+    Q: Into<PathBuf>,
 {
     let directory = directory.into();
     let filename: String = filename.into().to_string_lossy().into();
@@ -86,15 +84,15 @@ where P: Into<PathBuf>, Q: Into<PathBuf>
     let mut backups_to_delete = Vec::new();
 
     for entry in directory.read_dir()? {
-         let path = entry?.path();
-         if path.is_file() {
-             if let Some(fname) = path.file_name() {
+        let path = entry?.path();
+        if path.is_file() {
+            if let Some(fname) = path.file_name() {
                 let fname: String = fname.to_string_lossy().into();
-               if fname.starts_with(&filename) && has_backup_suffix(&fname) {
+                if fname.starts_with(&filename) && has_backup_suffix(&fname) {
                     backups_to_delete.push(path);
-               }
-             }
-         }
+                }
+            }
+        }
     }
 
     backups_to_delete.sort();
@@ -128,8 +126,8 @@ fn has_backup_suffix(filename: &str) -> bool {
 }
 
 /// Makes a guaranteed-absolute path from a filename that may or may not
-/// already be absolute. Returns a Cow::Borrowed if filename is already absolute,
-/// else returns a Cow::Owned.
+/// already be absolute. Returns a Cow::Borrowed if filename is already
+/// absolute, else returns a Cow::Owned.
 pub fn make_absolute<'a, 'b>(filename: &'a Path, directory: &'b Path) -> Cow<'a, Path> {
     if filename.is_absolute() {
         filename.into()

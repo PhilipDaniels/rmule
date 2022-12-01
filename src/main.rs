@@ -71,12 +71,10 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    let (_config_commands_tx, config_commands_rx) = configuration::make_command_channel();
-    let (config_events_tx, _config_events_rx) = configuration::make_event_channel();
-    configuration::initialise_configuration_manager(&config_dir, config_events_tx, config_commands_rx).await?;
+    let (_cfg_cmd_tx, _cfg_evt_rx) = configuration::initialise_configuration_manager(&config_dir).await?;
 
-    // Without this, the process will exit before the Configuration Manager background
-    // task has had chance to run and load all data.
+    // Without this, the process will exit before the Configuration Manager
+    // background task has had chance to run and load all data.
     std::thread::sleep(Duration::from_secs(5));
     Ok(())
 }
