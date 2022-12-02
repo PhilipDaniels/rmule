@@ -16,6 +16,8 @@ pub enum ConfigurationCommands {
 pub enum ConfigurationEvents {
     InitComplete,
     SettingsChange(Arc<Settings>),
+    AddressListChange(Arc<AddressList>),
+    TempDirectoryListChange(Arc<TempDirectoryList>),
 }
 
 pub struct ConfigurationManager {
@@ -36,7 +38,9 @@ impl ConfigurationManager {
     pub async fn start(&mut self) -> Result<()> {
         // Load things from the config db.
         let config_db = ConfigurationDb::open(&self.config_dir)?;
-        self.load_all_configuration(&config_db)?;
+        self.load_settings(&config_db)?;
+        self.load_address_list(&config_db)?;
+        self.load_temp_directories(&config_db)?;
 
         // Tell everybody we are ready.
         self.events_sender.send(ConfigurationEvents::InitComplete)?;
@@ -53,27 +57,29 @@ impl ConfigurationManager {
 
     fn shutdown(&mut self) {}
 
-    fn load_all_configuration(&mut self, config_db: &ConfigurationDb) -> Result<()> {
+    fn load_address_list(&mut self, config_db: &ConfigurationDb) -> Result<(), anyhow::Error> {
+        let address_list = AddressList::load(&config_db)?;
+        self.events_sender.send(ConfigurationEvents::AddressListChange(Arc::new(address_list)))?;
+        Ok(())
+    }
+
+    fn load_settings(&mut self, config_db: &ConfigurationDb) -> Result<(), anyhow::Error> {
         let mut settings = Settings::load(&config_db)?;
         if settings.make_absolute(&config_db.config_dir) > 0 {
             settings.save(&config_db)?;
         }
-
         self.events_sender.send(ConfigurationEvents::SettingsChange(Arc::new(settings)))?;
+        Ok(())
+    }
 
-        let address_list = AddressList::load(&config_db)?;
-
+    fn load_temp_directories(&mut self, config_db: &ConfigurationDb) -> Result<()> {
         let mut temp_dirs = TempDirectoryList::load(&config_db)?;
         if temp_dirs.make_absolute(&config_db.config_dir) > 0 {
             temp_dirs.save(&config_db)?;
         }
 
-        let mut num_added = temp_dirs.add("/phil/downloads")?;
-        num_added += temp_dirs.add("/phil/downloads")?;
-        num_added += temp_dirs.add("/foo/temp")?;
-        if num_added > 0 {
-            temp_dirs.save(&config_db)?;
-        }
+        self.events_sender.send(ConfigurationEvents::TempDirectoryListChange(Arc::new(temp_dirs)))?;
+
         Ok(())
     }
 }
