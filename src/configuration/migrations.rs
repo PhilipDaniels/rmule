@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use rusqlite::Connection;
-use tracing::info;
+use tracing::{error, info};
 
 use super::sqlite_extensions::ConnectionExtensions;
 
@@ -33,17 +33,22 @@ pub fn apply_database_migrations(conn: &Connection) -> Result<()> {
 fn apply_migration(idx: usize, conn: &Connection, migration: &str) -> Result<()> {
     let msg = migration.lines().take(1).next();
 
-    match msg {
-        Some(msg) => {
-            // Trim off the start of the SQL comment (so we expect each script
-            // to start with a descriptive comment...)
-            let msg = &msg[3..];
-            info!("Executing migration {}: {}", idx, msg);
-            conn.execute_batch(migration)?;
-            set_database_version(conn, idx + 1)?;
-            info!(" SUCCESS.");
+    // Trim off the start of the SQL comment (so we expect each script
+    // to start with a descriptive comment...)
+    let msg = &msg.expect(&format!("Empty migration detected, number = {}", idx))[3..];
+
+    match conn.execute_batch(migration) {
+        Ok(_) => match set_database_version(conn, idx + 1) {
+            Ok(_) => info!("Executing migration {}: {} SUCCESS", idx, msg),
+            Err(e) => {
+                error!("Executing migration {}: {} Batch SUCCEEDED, but updating database version FAILED", idx, msg);
+                bail!(e);
+            }
+        },
+        Err(e) => {
+            error!("Executing migration {}: {} Batch FAILED", idx, msg);
+            bail!(e);
         }
-        None => panic!("Empty migration detected, number = {}", idx),
     }
 
     Ok(())
