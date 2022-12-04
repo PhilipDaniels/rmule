@@ -41,12 +41,15 @@ fn apply_migration(idx: usize, conn: &Connection, migration: &str) -> Result<()>
         Ok(_) => match set_database_version(conn, idx + 1) {
             Ok(_) => info!("Executing migration {}: {} SUCCESS", idx, msg),
             Err(e) => {
-                error!("Executing migration {}: {} Batch SUCCEEDED, but updating database version FAILED", idx, msg);
+                error!(
+                    "Executing migration {}: {} Batch SUCCEEDED, but updating database version FAILED {}",
+                    idx, msg, e
+                );
                 bail!(e);
             }
         },
         Err(e) => {
-            error!("Executing migration {}: {} Batch FAILED", idx, msg);
+            error!("Executing migration {}: {} Batch FAILED {}", idx, msg, e);
             bail!(e);
         }
     }

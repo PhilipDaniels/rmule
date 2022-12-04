@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use super::sqlite_extensions::DatabasePathBuf;
 use super::ConfigurationDb;
-use anyhow::{bail, Result};
+use anyhow::Result;
 use rusqlite::{params, TransactionBehavior};
 use tracing::info;
 
@@ -13,17 +13,27 @@ use tracing::info;
 /// multiple temp directories pointing to the same physical directory.
 #[derive(Debug)]
 pub struct TempDirectoryList {
-    directories: Vec<DatabasePathBuf>,
+    directories: Vec<TempDirectory>,
+}
+
+#[derive(Debug)]
+pub struct TempDirectory {
+    id: u32,
+    directory: DatabasePathBuf,
 }
 
 impl TempDirectoryList {
-    /// Load all download directories from the database.
-    pub fn load(db: &ConfigurationDb) -> Result<Self> {
+    /// Load all temporary directories from the database.
+    pub fn load_all(db: &ConfigurationDb) -> Result<Self> {
         let conn = db.conn();
         let mut stmt = conn.prepare("SELECT directory FROM temp_directory")?;
 
-        let directories: Vec<DatabasePathBuf> =
-            stmt.query_map([], |row| Ok(row.get("directory")?))?.flatten().collect();
+        let directories: Vec<TempDirectory> = stmt
+            .query_map([], |row| {
+                Ok(TempDirectory { id: row.get("id")?, directory: row.get("directory")? })
+            })?
+            .flatten()
+            .collect();
 
         info!("Loaded {} rows from temp_directory", directories.len());
 
@@ -43,9 +53,12 @@ impl TempDirectoryList {
     pub fn make_absolute(&mut self, within_dir: &Path) -> usize {
         let mut num_made_abs = 0;
 
-        for dir in &mut self.directories {
-            if dir.make_absolute(within_dir) {
-                info!("Made temp_directory absolute, is now {}", dir.to_string_lossy());
+        for temp_dir in &mut self.directories {
+            if temp_dir.directory.make_absolute(within_dir) {
+                info!(
+                    "Made temp_directory absolute, is now {}",
+                    temp_dir.directory.to_string_lossy()
+                );
                 num_made_abs += 1;
             }
         }
@@ -53,6 +66,7 @@ impl TempDirectoryList {
         num_made_abs
     }
 
+    /*
     /// Saves the temp directory list to the database. The entire list is
     /// saved in one transaction.
     pub fn save(&self, db: &ConfigurationDb) -> Result<()> {
@@ -74,7 +88,9 @@ impl TempDirectoryList {
 
         Ok(())
     }
+    */
 
+    /*
     /// Adds a new directory to the list but only if it is not already in
     /// the list. The directory must be absolute - an error is returned
     /// if it isn't.
@@ -104,4 +120,5 @@ impl TempDirectoryList {
             Ok(0)
         }
     }
+    */
 }

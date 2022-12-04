@@ -2,9 +2,10 @@
 
 # [rustfmt::skip]
 
-max_width = 120
+max_width = 100
 impl_empty_single_line = false
 fn_empty_single_line = false
 reorder_imports = true
 wrap_comments = true
 use_small_heuristics = "Max"
+newline_style = "unix"

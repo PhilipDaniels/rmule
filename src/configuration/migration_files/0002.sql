@@ -4,8 +4,9 @@
 -- in amule. http://wiki.amule.org/wiki/Addresses.dat_file
 CREATE TABLE address
     (
+    id INTEGER PRIMARY KEY,
     created TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
     updated TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-    url TEXT NOT NULL PRIMARY KEY,
-    active INT NOT NULL
+    url TEXT NOT NULL,
+    active INTEGER NOT NULL
     );

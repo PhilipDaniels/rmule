@@ -58,7 +58,7 @@ impl ConfigurationManager {
     fn shutdown(&mut self) {}
 
     fn load_address_list(&mut self, config_db: &ConfigurationDb) -> Result<(), anyhow::Error> {
-        let address_list = AddressList::load(&config_db)?;
+        let address_list = AddressList::load_all(&config_db)?;
         self.events_sender.send(ConfigurationEvents::AddressListChange(Arc::new(address_list)))?;
         Ok(())
     }
@@ -73,12 +73,13 @@ impl ConfigurationManager {
     }
 
     fn load_temp_directories(&mut self, config_db: &ConfigurationDb) -> Result<()> {
-        let mut temp_dirs = TempDirectoryList::load(&config_db)?;
+        let mut temp_dirs = TempDirectoryList::load_all(&config_db)?;
         if temp_dirs.make_absolute(&config_db.config_dir) > 0 {
-            temp_dirs.save(&config_db)?;
+            //temp_dirs.save(&config_db)?;
         }
 
-        self.events_sender.send(ConfigurationEvents::TempDirectoryListChange(Arc::new(temp_dirs)))?;
+        self.events_sender
+            .send(ConfigurationEvents::TempDirectoryListChange(Arc::new(temp_dirs)))?;
 
         Ok(())
     }

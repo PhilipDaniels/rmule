@@ -5,11 +5,10 @@
 -- RAID array.
 CREATE TABLE temp_directory
     (
+    id INTEGER PRIMARY KEY,
     created TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
     updated TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-    directory TEXT NOT NULL PRIMARY KEY
+    directory TEXT NOT NULL
     );
 
--- Will be normalized to the config_dir at run time.
-INSERT INTO temp_directory(directory) VALUES ('temp');
 

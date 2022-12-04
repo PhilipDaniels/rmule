@@ -50,7 +50,6 @@ async fn main() -> Result<()> {
         None => get_default_config_dir()?,
     };
 
-    // If this argument is specified, print the dir and then exit.
     if args.contains("--print-config-dir") {
         match file::directory_exists(&config_dir)? {
             true => println!("{} (exists)", config_dir.to_string_lossy()),
