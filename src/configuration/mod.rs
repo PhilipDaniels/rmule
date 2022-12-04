@@ -2,12 +2,14 @@ mod address;
 mod configuration_db;
 mod configuration_manager;
 mod migrations;
+mod server;
 mod settings;
 mod sqlite_extensions;
 mod temp_directory;
 
 pub use address::*;
 pub use configuration_db::*;
+pub use server::*;
 pub use settings::*;
 pub use temp_directory::*;
 
@@ -35,7 +37,7 @@ pub async fn initialise_configuration_manager(
     let config_dir = config_dir.to_owned();
 
     let (cmd_sender, cmd_rx) = make_command_channel();
-    let (evt_tx, _evt_rx) = make_event_channel();
+    let (evt_tx, evt_receiver) = make_event_channel();
     let evt_sender = evt_tx.clone();
 
     tokio::task::Builder::new().name("ConfigurationMgr").spawn(async move {
@@ -44,7 +46,7 @@ pub async fn initialise_configuration_manager(
         Ok::<(), anyhow::Error>(())
     })?;
 
-    let handle = ConfigurationManagerHandle { cmd_sender, evt_sender };
+    let handle = ConfigurationManagerHandle { cmd_sender, evt_sender, evt_receiver };
     Ok(handle)
 }
 
@@ -64,6 +66,8 @@ fn make_event_channel() -> (ConfigurationEventSender, ConfigurationEventReceiver
 pub struct ConfigurationManagerHandle {
     cmd_sender: ConfigurationCommandSender,
     evt_sender: ConfigurationEventSender,
+    // TODO: Without this we cannot emit events.
+    evt_receiver: ConfigurationEventReceiver,
 }
 
 impl ConfigurationManagerHandle {

@@ -5,8 +5,11 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
-
+[ ] Why are errors not being propagated without unwrap?
 [ ] List of servers. See ServerList.cpp for operations.
+  [ ] Load list of servers
+  [ ] If any rows are found in addresses then we use them to auto-update the server list
+  [ ] Write all servers back to server.met.
 [ ] Run as a daemon (PID file needed)
 [ ] Load server.met? Also see code on line 592 to auto-update the list.
 [ ] Download and test server.met with nom
@@ -15,6 +18,12 @@ amule.cpp/364
   [ ] If an entire file arrives without needing flushing to db we can write the whole
       thing to the destination without needing to write to db first.
 
+# Timeline
+1. Do not commence network calls until all init is complete.
+2. Load Configuration Manager from db.
+3. Emit ConfigurationLoaded.
+4. Begin auto-update of server list.
+5. Emit ConfigurationFinished.
 
 # Main crates used
 - [rusqlite](https://crates.io/crates/rusqlite) rMule stores its configuration in a SQLite database, and the temporary

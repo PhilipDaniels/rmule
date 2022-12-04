@@ -75,7 +75,7 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    let _cfg_mgr_handle = configuration::initialise_configuration_manager(&config_dir).await?;
+    let _cfg_mgr_handle = configuration::initialise_configuration_manager(&config_dir).await;
 
     // Without this, the process will exit before the Configuration Manager
     // background task has had chance to run and load all data.

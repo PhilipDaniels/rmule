@@ -5,7 +5,7 @@ use anyhow::Result;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc::Receiver;
 
-use super::{AddressList, ConfigurationDb, Settings, TempDirectoryList};
+use super::{AddressList, ConfigurationDb, ServerList, Settings, TempDirectoryList};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ConfigurationCommands {
@@ -18,6 +18,7 @@ pub enum ConfigurationEvents {
     SettingsChange(Arc<Settings>),
     AddressListChange(Arc<AddressList>),
     TempDirectoryListChange(Arc<TempDirectoryList>),
+    ServerListChange(Arc<ServerList>),
 }
 
 pub struct ConfigurationManager {
@@ -38,9 +39,10 @@ impl ConfigurationManager {
     pub async fn start(&mut self) -> Result<()> {
         // Load things from the config db.
         let config_db = ConfigurationDb::open(&self.config_dir)?;
-        self.load_settings(&config_db)?;
-        self.load_address_list(&config_db)?;
-        self.load_temp_directories(&config_db)?;
+        self.load_settings(&config_db).unwrap();
+        self.load_address_list(&config_db).unwrap();
+        self.load_temp_directories(&config_db).unwrap();
+        self.load_servers(&config_db).unwrap();
 
         // Tell everybody we are ready.
         self.events_sender.send(ConfigurationEvents::InitComplete)?;
@@ -57,22 +59,28 @@ impl ConfigurationManager {
 
     fn shutdown(&mut self) {}
 
-    fn load_address_list(&mut self, config_db: &ConfigurationDb) -> Result<(), anyhow::Error> {
-        let address_list = AddressList::load_all(&config_db)?;
-        self.events_sender.send(ConfigurationEvents::AddressListChange(Arc::new(address_list)))?;
-        Ok(())
-    }
-
     fn load_settings(&mut self, config_db: &ConfigurationDb) -> Result<(), anyhow::Error> {
-        let settings = Settings::load(&config_db)?;
+        let settings = Settings::load(config_db)?;
         self.events_sender.send(ConfigurationEvents::SettingsChange(Arc::new(settings)))?;
         Ok(())
     }
 
+    fn load_address_list(&mut self, config_db: &ConfigurationDb) -> Result<(), anyhow::Error> {
+        let address_list = AddressList::load_all(config_db)?;
+        self.events_sender.send(ConfigurationEvents::AddressListChange(Arc::new(address_list)))?;
+        Ok(())
+    }
+
     fn load_temp_directories(&mut self, config_db: &ConfigurationDb) -> Result<()> {
-        let temp_dirs = TempDirectoryList::load_all(&config_db)?;
+        let temp_dirs = TempDirectoryList::load_all(config_db)?;
         self.events_sender
             .send(ConfigurationEvents::TempDirectoryListChange(Arc::new(temp_dirs)))?;
+        Ok(())
+    }
+
+    fn load_servers(&mut self, config_db: &ConfigurationDb) -> Result<()> {
+        let servers = ServerList::load_all(config_db)?;
+        self.events_sender.send(ConfigurationEvents::ServerListChange(Arc::new(servers)))?;
         Ok(())
     }
 }
