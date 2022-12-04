@@ -1,19 +1,14 @@
-use std::path::Path;
-
 use super::sqlite_extensions::{DatabasePathBuf, DatabaseTime};
 use super::ConfigurationDb;
-use anyhow::{bail, Result};
+use anyhow::Result;
 use rusqlite::params;
 use tracing::info;
 
 #[derive(Debug)]
 pub struct Settings {
     pub nick_name: String,
-    /// When a download is started it is written to
-    /// 1. The directory set for the download itself, if set.
-    /// 2. This directory, if set.
-    /// 3. The default default_downloads_directory on the Settings,
-    /// which is always set.
+    /// Default downloads directory to be used if not set on the TempDirectory
+    /// or on the download itself.
     pub default_downloads_directory: DatabasePathBuf,
 }
 

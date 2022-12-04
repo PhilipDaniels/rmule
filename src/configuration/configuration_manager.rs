@@ -70,14 +70,9 @@ impl ConfigurationManager {
     }
 
     fn load_temp_directories(&mut self, config_db: &ConfigurationDb) -> Result<()> {
-        let mut temp_dirs = TempDirectoryList::load_all(&config_db)?;
-        if temp_dirs.make_absolute(&config_db.config_dir) > 0 {
-            //temp_dirs.save(&config_db)?;
-        }
-
+        let temp_dirs = TempDirectoryList::load_all(&config_db)?;
         self.events_sender
             .send(ConfigurationEvents::TempDirectoryListChange(Arc::new(temp_dirs)))?;
-
         Ok(())
     }
 }

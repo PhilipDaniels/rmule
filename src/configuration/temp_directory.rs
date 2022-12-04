@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::sqlite_extensions::DatabasePathBuf;
 use super::ConfigurationDb;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use tracing::info;
 
 /// The rmule equivalent of the "temp directory" setting from emule.
@@ -25,20 +25,32 @@ impl TempDirectoryList {
     /// Load all temporary directories from the database.
     pub fn load_all(db: &ConfigurationDb) -> Result<Self> {
         let conn = db.conn();
-        let mut stmt = conn.prepare("SELECT directory FROM temp_directory")?;
+        let mut stmt = conn.prepare("SELECT id, directory FROM temp_directory")?;
 
-        let directories: Vec<TempDirectory> = stmt
+        let mut directories: Vec<TempDirectory> = stmt
             .query_map([], |row| {
                 Ok(TempDirectory { id: row.get("id")?, directory: row.get("directory")? })
             })?
             .flatten()
             .collect();
 
+        if directories.is_empty() {
+            let mut temp_dir_pb = dirs::download_dir().unwrap_or("Downloads".into());
+            temp_dir_pb.push("rmule-temp");
+            info!(
+                "No rows found in temp_directory table, creating a default at {}",
+                temp_dir_pb.to_string_lossy()
+            );
+            let new_temp_dir = Self::insert(db, &temp_dir_pb).unwrap();
+            directories.push(new_temp_dir);
+        }
+
         info!("Loaded {} rows from temp_directory", directories.len());
 
         Ok(Self { directories })
     }
 
+    /*
     /// Makes any paths found in the directories list into absolute ones.
     /// This is not possible for paths added via the 'add' method because
     /// it guards against relative paths, but for initial data inserted into
@@ -63,6 +75,27 @@ impl TempDirectoryList {
         }
 
         num_made_abs
+    }
+    */
+
+    /// Inserts a new temp directory. Returns a value with the id field
+    /// correctly set from the database.
+    pub fn insert(db: &ConfigurationDb, path: &Path) -> Result<TempDirectory> {
+        let conn = db.conn();
+        let mut stmt = conn.prepare(
+            r#"INSERT INTO temp_directory(directory) VALUES (?1)
+                RETURNING id"#,
+        )?;
+
+        let path: DatabasePathBuf = path.into();
+        let mut rows = stmt.query(&[&path])?;
+        match rows.next()? {
+            Some(row) => {
+                let id: u32 = row.get("id")?;
+                return Ok(TempDirectory { id, directory: path });
+            }
+            None => bail!("Insert of {} to temp_directory table failed", path.to_string_lossy()),
+        }
     }
 
     /*

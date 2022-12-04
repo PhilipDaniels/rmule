@@ -22,12 +22,12 @@ impl AddressList {
     /// Load all addresses from the database.
     pub fn load_all(db: &ConfigurationDb) -> Result<Self> {
         let conn = db.conn();
-        let mut stmt = conn.prepare("SELECT id, active, url FROM address")?;
+        let mut stmt = conn.prepare("SELECT id, url, active FROM address")?;
 
         let addresses: Vec<_> = stmt
             .query_map([], |row| {
                 Ok(Address {
-                    id: row.get("ïd")?, active: row.get("active")?, url: row.get("url")?
+                    id: row.get("ïd")?, url: row.get("url")?, active: row.get("active")?
                 })
             })?
             .flatten()
