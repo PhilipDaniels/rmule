@@ -3,7 +3,6 @@ use std::path::Path;
 use super::sqlite_extensions::DatabasePathBuf;
 use super::ConfigurationDb;
 use anyhow::Result;
-use rusqlite::{params, TransactionBehavior};
 use tracing::info;
 
 /// The rmule equivalent of the "temp directory" setting from emule.

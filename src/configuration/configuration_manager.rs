@@ -64,10 +64,7 @@ impl ConfigurationManager {
     }
 
     fn load_settings(&mut self, config_db: &ConfigurationDb) -> Result<(), anyhow::Error> {
-        let mut settings = Settings::load(&config_db)?;
-        if settings.make_absolute(&config_db.config_dir) > 0 {
-            settings.save(&config_db)?;
-        }
+        let settings = Settings::load(&config_db)?;
         self.events_sender.send(ConfigurationEvents::SettingsChange(Arc::new(settings)))?;
         Ok(())
     }

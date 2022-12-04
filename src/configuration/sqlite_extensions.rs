@@ -35,8 +35,10 @@ impl ConnectionExtensions for Connection {
     }
 
     fn table_exists(&self, table_name: &str) -> Result<bool> {
-        let count: usize =
-            self.execute_scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", [&table_name])?;
+        let count: usize = self.execute_scalar(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?",
+            [&table_name],
+        )?;
         Ok(count == 1)
     }
 }
@@ -114,6 +116,12 @@ impl From<PathBuf> for DatabasePathBuf {
 
 impl From<&Path> for DatabasePathBuf {
     fn from(rhs: &Path) -> Self {
+        Self(rhs.into())
+    }
+}
+
+impl From<&str> for DatabasePathBuf {
+    fn from(rhs: &str) -> Self {
         Self(rhs.into())
     }
 }

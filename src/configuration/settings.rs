@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::sqlite_extensions::{DatabasePathBuf, DatabaseTime};
 use super::ConfigurationDb;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use rusqlite::params;
 use tracing::info;
 
@@ -20,16 +20,29 @@ pub struct Settings {
 impl Settings {
     /// Loads the settings from the database.
     pub fn load(db: &ConfigurationDb) -> Result<Self> {
-        let settings = db.conn().query_row("SELECT * FROM settings", [], |row| {
+        let conn = db.conn();
+        let mut stmt = conn.prepare("SELECT * FROM settings")?;
+        let mut rows = stmt.query([])?;
+
+        if let Some(row) = rows.next()? {
             Ok(Self {
                 nick_name: row.get("nick_name")?,
                 default_downloads_directory: row.get("default_downloads_directory")?,
             })
-        })?;
+        } else {
+            info!("No settings rows in database, creating default");
+            let ddir_pb = dirs::download_dir().unwrap_or("Downloads".into());
+            let default_settings = Self {
+                nick_name: "http://www.rMule.org".to_owned(),
+                default_downloads_directory: ddir_pb.into(),
+            };
 
-        Ok(settings)
+            default_settings.insert(db)?;
+            return Ok(default_settings);
+        }
     }
 
+    /*
     /// Makes any paths found in the Settings into absolute ones.
     ///
     /// We have a post-condition that any paths returned from the configuration
@@ -50,9 +63,10 @@ impl Settings {
 
         num_made_abs
     }
+    */
 
-    /// Saves the settings to the database.
-    pub fn save(&self, db: &ConfigurationDb) -> Result<()> {
+    /// Updates existing settings in the database.
+    pub fn update(&self, db: &ConfigurationDb) -> Result<()> {
         db.conn().execute(
             r#"UPDATE settings SET
                 nick_name = ?1,
@@ -63,6 +77,18 @@ impl Settings {
         )?;
 
         info!("Saved Settings to the settings table");
+        Ok(())
+    }
+
+    pub fn insert(&self, db: &ConfigurationDb) -> Result<()> {
+        db.conn().execute(
+            r#"INSERT INTO settings(nick_name, default_downloads_directory)
+                VALUES(?1, ?2);
+            "#,
+            params![self.nick_name, self.default_downloads_directory],
+        )?;
+
+        info!("Inserted Settings to the settings table");
         Ok(())
     }
 }
