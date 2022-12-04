@@ -6,6 +6,7 @@ amule.cpp/364
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
 [ ] Why are errors not being propagated without unwrap?
+
 [ ] List of servers. See ServerList.cpp for operations.
   [ ] Load list of servers
   [ ] If any rows are found in addresses then we use them to auto-update the server list

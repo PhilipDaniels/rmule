@@ -57,11 +57,12 @@ fn apply_migration(idx: usize, conn: &Connection, migration: &str) -> Result<()>
     Ok(())
 }
 
-static MIGRATIONS: [&str; 4] = [
+static MIGRATIONS: [&str; 5] = [
     include_str!("migration_files/0000.sql"),
     include_str!("migration_files/0001.sql"),
     include_str!("migration_files/0002.sql"),
     include_str!("migration_files/0003.sql"),
+    include_str!("migration_files/0004.sql"),
 ];
 
 fn get_database_version(conn: &Connection) -> Result<usize> {

@@ -48,6 +48,7 @@ impl ConnectionExtensions for Connection {
 /// Since we are storing datetimes in SQLite as strings, this is
 /// easy (assuming nobody goes into the db and starts messing
 /// with the strings...). I will live with that.
+#[derive(Debug)]
 pub struct DatabaseTime(String);
 
 impl DatabaseTime {
