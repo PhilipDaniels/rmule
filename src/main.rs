@@ -1,4 +1,5 @@
 #![allow(dead_code)] // TEMP: Remove this when done!
+#![forbid(unsafe_code)]
 
 use anyhow::{bail, Result};
 use configuration::ConfigurationDb;
