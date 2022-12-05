@@ -25,7 +25,10 @@ impl ConfigurationDb {
     pub fn open(config_dir: &Path) -> Result<Self> {
         let filename = Self::config_db_filename(config_dir);
 
-        info!("Attempting to open configuration database {}", filename.display());
+        info!(
+            "Attempting to open configuration database {}",
+            filename.display()
+        );
 
         // This will create an empty SQLite db if needed.
         let conn = Connection::open(&filename)?;
@@ -34,7 +37,11 @@ impl ConfigurationDb {
 
         info!("Opened configuration database {}", filename.display());
 
-        let cfg = Self { config_dir: config_dir.to_owned(), config_db_filename: filename, conn: RefCell::new(conn) };
+        let cfg = Self {
+            config_dir: config_dir.to_owned(),
+            config_db_filename: filename,
+            conn: RefCell::new(conn),
+        };
 
         Ok(cfg)
     }
@@ -46,9 +53,16 @@ impl ConfigurationDb {
         if filename.try_exists()? {
             let backup_config_file = crate::file::make_backup_filename(&filename);
             std::fs::copy(filename, &backup_config_file)?;
-            info!("Backed up config database to {}", backup_config_file.to_string_lossy());
+            info!(
+                "Backed up config database to {}",
+                backup_config_file.to_string_lossy()
+            );
             let num_deleted = crate::file::delete_backups(config_dir, Self::CONFIG_DB_NAME, 10)?;
-            info!("Deleted {} backups of {}", num_deleted, Self::CONFIG_DB_NAME);
+            info!(
+                "Deleted {} backups of {}",
+                num_deleted,
+                Self::CONFIG_DB_NAME
+            );
         }
 
         Ok(())
@@ -75,7 +89,11 @@ impl ConfigurationDb {
 
     /// Executes a transaction on this database.
     /// See [https://docs.rs/rusqlite/latest/rusqlite/struct.Transaction.html]
-    pub fn execute_in_transaction<T, F>(&self, behaviour: TransactionBehavior, block: F) -> Result<T>
+    pub fn execute_in_transaction<T, F>(
+        &self,
+        behaviour: TransactionBehavior,
+        block: F,
+    ) -> Result<T>
     where
         F: FnOnce(Transaction) -> Result<T>,
     {

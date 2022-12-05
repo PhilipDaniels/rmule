@@ -16,7 +16,11 @@ pub fn apply_database_migrations(conn: &Connection) -> Result<()> {
     // If db_version is 0 it means the 'version' table does not exist. We therefore
     // want to run the first migration, which creates it. And so on.
     let mut num_migrations = 0;
-    for (idx, &mig) in MIGRATIONS.iter().enumerate().filter(|(idx, _)| *idx >= db_version) {
+    for (idx, &mig) in MIGRATIONS
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| *idx >= db_version)
+    {
         apply_migration(idx, conn, mig)?;
         num_migrations += 1;
     }

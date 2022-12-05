@@ -13,5 +13,8 @@ pub fn now_to_sql() -> String {
     let (y, m, d) = dt.to_calendar_date();
     let (hh, mm, ss, ms) = dt.to_hms_milli();
 
-    format!("{}-{:0>2}-{:0>2} {:0>2}:{:0>2}:{:0>2}.{:0>3}", y, m as u8, d, hh, mm, ss, ms)
+    format!(
+        "{}-{:0>2}-{:0>2} {:0>2}:{:0>2}:{:0>2}.{:0>3}",
+        y, m as u8, d, hh, mm, ss, ms
+    )
 }

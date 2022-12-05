@@ -62,7 +62,11 @@ pub fn ensure_writable(path: &Path) -> Result<()> {
 pub fn make_backup_filename<P: Into<PathBuf>>(path: P) -> PathBuf {
     let original = path.into();
 
-    let new_file_name = format!("{}-{}", original.file_name().unwrap().to_string_lossy(), times::now_to_yyyy_mm_dd());
+    let new_file_name = format!(
+        "{}-{}",
+        original.file_name().unwrap().to_string_lossy(),
+        times::now_to_yyyy_mm_dd()
+    );
 
     original.with_file_name(new_file_name)
 }

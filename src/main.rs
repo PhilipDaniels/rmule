@@ -6,6 +6,8 @@ use std::time::Duration;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
+use crate::configuration::ConfigurationManagerHandle;
+
 mod configuration;
 mod file;
 mod times;
@@ -53,7 +55,10 @@ async fn main() -> Result<()> {
     if args.contains("--print-config-dir") {
         match file::directory_exists(&config_dir)? {
             true => println!("{} (exists)", config_dir.to_string_lossy()),
-            false => println!("{} (does not exist, will be created)", config_dir.to_string_lossy()),
+            false => println!(
+                "{} (does not exist, will be created)",
+                config_dir.to_string_lossy()
+            ),
         };
 
         return Ok(());
@@ -75,7 +80,7 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    let _cfg_mgr_handle = configuration::initialise_configuration_manager(&config_dir).await;
+    let _cfg_mgr_handle = ConfigurationManagerHandle::new(&config_dir)?;
 
     // Without this, the process will exit before the Configuration Manager
     // background task has had chance to run and load all data.

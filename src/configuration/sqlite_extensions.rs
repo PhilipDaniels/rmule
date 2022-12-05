@@ -65,7 +65,9 @@ impl ToSql for DatabaseTime {
 
 impl FromSql for DatabaseTime {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-        value.as_str().and_then(|s| FromSqlResult::Ok(Self(s.to_owned())))
+        value
+            .as_str()
+            .and_then(|s| FromSqlResult::Ok(Self(s.to_owned())))
     }
 }
 
@@ -105,7 +107,9 @@ impl ToSql for DatabasePathBuf {
 
 impl FromSql for DatabasePathBuf {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> FromSqlResult<Self> {
-        value.as_str().and_then(|s| FromSqlResult::Ok(Self(s.into())))
+        value
+            .as_str()
+            .and_then(|s| FromSqlResult::Ok(Self(s.into())))
     }
 }
 

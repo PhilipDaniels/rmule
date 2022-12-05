@@ -3,6 +3,7 @@ use std::path::Path;
 use super::sqlite_extensions::DatabasePathBuf;
 use super::ConfigurationDb;
 use anyhow::{bail, Result};
+use rusqlite::Row;
 use tracing::info;
 
 /// The rmule equivalent of the "temp directory" setting from emule.
@@ -21,6 +22,18 @@ pub struct TempDirectory {
     directory: DatabasePathBuf,
 }
 
+impl TryFrom<&Row<'_>> for TempDirectory {
+    type Error = rusqlite::Error;
+
+    /// Convert a Rusqlite row to a TempDirectory value.
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: row.get("id")?,
+            directory: row.get("directory")?,
+        })
+    }
+}
+
 impl TempDirectoryList {
     /// Load all temporary directories from the database.
     pub fn load_all(db: &ConfigurationDb) -> Result<Self> {
@@ -28,9 +41,7 @@ impl TempDirectoryList {
         let mut stmt = conn.prepare("SELECT id, directory FROM temp_directory")?;
 
         let mut directories: Vec<TempDirectory> = stmt
-            .query_map([], |row| {
-                Ok(TempDirectory { id: row.get("id")?, directory: row.get("directory")? })
-            })?
+            .query_map([], |row| TempDirectory::try_from(row))?
             .flatten()
             .collect();
 
@@ -92,9 +103,15 @@ impl TempDirectoryList {
         match rows.next()? {
             Some(row) => {
                 let id: u32 = row.get("id")?;
-                return Ok(TempDirectory { id, directory: path });
+                return Ok(TempDirectory {
+                    id,
+                    directory: path,
+                });
             }
-            None => bail!("Insert of {} to temp_directory table failed", path.to_string_lossy()),
+            None => bail!(
+                "Insert of {} to temp_directory table failed",
+                path.to_string_lossy()
+            ),
         }
     }
 

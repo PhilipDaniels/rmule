@@ -1,5 +1,6 @@
 use super::ConfigurationDb;
 use anyhow::Result;
+use rusqlite::Row;
 use tracing::info;
 
 /// The rmule equivalent of addresses.dat from emule.
@@ -18,6 +19,19 @@ pub struct Address {
     pub active: bool,
 }
 
+impl TryFrom<&Row<'_>> for Address {
+    type Error = rusqlite::Error;
+
+    /// Convert a Rusqlite row to an Address value.
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: row.get("ïd")?,
+            url: row.get("url")?,
+            active: row.get("active")?,
+        })
+    }
+}
+
 impl AddressList {
     /// Load all addresses from the database.
     pub fn load_all(db: &ConfigurationDb) -> Result<Self> {
@@ -25,11 +39,7 @@ impl AddressList {
         let mut stmt = conn.prepare("SELECT id, url, active FROM address")?;
 
         let addresses: Vec<_> = stmt
-            .query_map([], |row| {
-                Ok(Address {
-                    id: row.get("ïd")?, url: row.get("url")?, active: row.get("active")?
-                })
-            })?
+            .query_map([], |row| Address::try_from(row))?
             .flatten()
             .collect();
 

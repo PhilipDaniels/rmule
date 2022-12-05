@@ -1,7 +1,7 @@
 use super::sqlite_extensions::{DatabasePathBuf, DatabaseTime};
 use super::ConfigurationDb;
 use anyhow::Result;
-use rusqlite::params;
+use rusqlite::{params, Row};
 use tracing::info;
 
 #[derive(Debug)]
@@ -12,6 +12,18 @@ pub struct Settings {
     pub default_downloads_directory: DatabasePathBuf,
 }
 
+impl TryFrom<&Row<'_>> for Settings {
+    type Error = rusqlite::Error;
+
+    /// Convert a Rusqlite row to a Settings value.
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        Ok(Self {
+            nick_name: row.get("nick_name")?,
+            default_downloads_directory: row.get("default_downloads_directory")?,
+        })
+    }
+}
+
 impl Settings {
     /// Loads the settings from the database.
     pub fn load(db: &ConfigurationDb) -> Result<Self> {
@@ -20,10 +32,7 @@ impl Settings {
         let mut rows = stmt.query([])?;
 
         if let Some(row) = rows.next()? {
-            Ok(Self {
-                nick_name: row.get("nick_name")?,
-                default_downloads_directory: row.get("default_downloads_directory")?,
-            })
+            Ok(Settings::try_from(row)?)
         } else {
             info!("No settings rows in database, creating default");
             let ddir_pb = dirs::download_dir().unwrap_or("Downloads".into());
@@ -68,7 +77,11 @@ impl Settings {
                 default_downloads_directory = ?2,
                 updated = ?3
             "#,
-            params![self.nick_name, self.default_downloads_directory, DatabaseTime::now()],
+            params![
+                self.nick_name,
+                self.default_downloads_directory,
+                DatabaseTime::now()
+            ],
         )?;
 
         info!("Saved Settings to the settings table");
