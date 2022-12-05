@@ -39,7 +39,7 @@ fn apply_migration(idx: usize, conn: &Connection, migration: &str) -> Result<()>
 
     // Trim off the start of the SQL comment (so we expect each script
     // to start with a descriptive comment...)
-    let msg = &msg.expect(&format!("Empty migration detected, number = {}", idx))[3..];
+    let msg = &msg.unwrap_or_else(|| panic!("Empty migration detected, number = {}", idx))[3..];
 
     match conn.execute_batch(migration) {
         Ok(_) => match set_database_version(conn, idx + 1) {

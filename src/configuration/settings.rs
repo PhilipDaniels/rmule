@@ -35,14 +35,14 @@ impl Settings {
             Ok(Settings::try_from(row)?)
         } else {
             info!("No settings rows in database, creating default");
-            let ddir_pb = dirs::download_dir().unwrap_or("Downloads".into());
+            let ddir_pb = dirs::download_dir().unwrap_or_else(|| "Downloads".into());
             let default_settings = Self {
                 nick_name: "http://www.rMule.org".to_owned(),
                 default_downloads_directory: ddir_pb.into(),
             };
 
             default_settings.insert(db)?;
-            return Ok(default_settings);
+            Ok(default_settings)
         }
     }
 

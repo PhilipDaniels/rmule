@@ -46,7 +46,7 @@ impl TempDirectoryList {
             .collect();
 
         if directories.is_empty() {
-            let mut temp_dir_pb = dirs::download_dir().unwrap_or("Downloads".into());
+            let mut temp_dir_pb = dirs::download_dir().unwrap_or_else(|| "Downloads".into());
             temp_dir_pb.push("rmule-temp");
             info!(
                 "No rows found in temp_directory table, creating a default at {}",
@@ -99,14 +99,14 @@ impl TempDirectoryList {
         )?;
 
         let path: DatabasePathBuf = path.into();
-        let mut rows = stmt.query(&[&path])?;
+        let mut rows = stmt.query([&path])?;
         match rows.next()? {
             Some(row) => {
                 let id: u32 = row.get("id")?;
-                return Ok(TempDirectory {
+                Ok(TempDirectory {
                     id,
                     directory: path,
-                });
+                })
             }
             None => bail!(
                 "Insert of {} to temp_directory table failed",
