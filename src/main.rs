@@ -1,3 +1,5 @@
+#![allow(dead_code)] // TEMP: Remove this when done!
+
 use anyhow::{bail, Result};
 use configuration::ConfigurationDb;
 use single_instance::SingleInstance;
