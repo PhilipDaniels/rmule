@@ -13,6 +13,7 @@ use crate::configuration::ConfigurationManagerHandle;
 
 mod configuration;
 mod file;
+mod parsers;
 mod times;
 
 #[tokio::main]
@@ -25,7 +26,9 @@ async fn main() -> Result<()> {
         .with_line_number(false)
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default tracing subscriber failed");
+
     info!("STARTING RMULE");
 
     let mut args = pico_args::Arguments::from_env();
