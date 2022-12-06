@@ -4,10 +4,10 @@ use std::sync::Arc;
 use crate::parsers;
 
 use super::{AddressList, ConfigurationDb, ServerList, Settings, TempDirectoryList};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures::future::join_all;
 use tokio::sync::{broadcast, mpsc};
-use tracing::{info, instrument, warn};
+use tracing::{info, instrument, span, trace_span, warn};
 
 pub type ConfigurationCommandSender = mpsc::Sender<ConfigurationCommands>;
 pub type ConfigurationCommandReceiver = mpsc::Receiver<ConfigurationCommands>;
@@ -107,8 +107,16 @@ impl ConfigurationManager {
 
     async fn download_server_met(url: &str) -> Result<Vec<u8>> {
         info!("Downloading server.met from {}", url);
-        let resp_bytes = reqwest::get(url).await?.bytes().await?;
+
+        let resp_bytes = reqwest::get(url)
+            .await
+            .with_context(|| format!("GET request to {} failed", url))?
+            .bytes()
+            .await
+            .with_context(|| format!("Could not extract bytes from response from {}", url))?;
+
         info!("Received {} bytes", resp_bytes.len());
+
         Ok(resp_bytes[..].to_vec())
     }
 
@@ -117,6 +125,8 @@ impl ConfigurationManager {
         config_db: &ConfigurationDb,
         addresses: &AddressList,
     ) -> Result<Arc<ServerList>> {
+        info!("Auto-updating server list");
+
         let mut current_servers = Self::load_servers(config_db)?;
 
         let mut tasks = Vec::new();
@@ -131,15 +141,17 @@ impl ConfigurationManager {
             }));
         }
 
-        // Vec<Result<Vec<ParsedServer>>
         let results = join_all(tasks).await;
-        let all_parsed_servers: Vec<_> = results
+        let mut all_parsed_servers: Vec<_> = results
             .into_iter()
             .filter_map(Result::ok)
             .flatten()
             .collect();
 
-        info!("Retrieved {} parsed servers", all_parsed_servers.len());
+        all_parsed_servers.sort_by(|a, b| a.ip_addr.cmp(&b.ip_addr));
+        all_parsed_servers.dedup_by(|a, b| a.ip_addr == b.ip_addr);
+        info!("Retrieved {} unique servers", all_parsed_servers.len());
+
         Ok(current_servers)
     }
 

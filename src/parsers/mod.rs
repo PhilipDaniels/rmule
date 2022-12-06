@@ -3,7 +3,9 @@
 
 use anyhow::Result;
 
-pub struct ParsedServer {}
+pub struct ParsedServer {
+    pub ip_addr: u32,
+}
 
 pub fn parse_servers(bytes: &[u8]) -> Result<Vec<ParsedServer>> {
     Ok(vec![])
