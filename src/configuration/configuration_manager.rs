@@ -5,8 +5,9 @@ use crate::parsers;
 
 use super::{AddressList, ConfigurationDb, ServerList, Settings, TempDirectoryList};
 use anyhow::Result;
+use futures::future::join_all;
 use tokio::sync::{broadcast, mpsc};
-use tracing::{info, warn};
+use tracing::{info, instrument, warn};
 
 pub type ConfigurationCommandSender = mpsc::Sender<ConfigurationCommands>;
 pub type ConfigurationCommandReceiver = mpsc::Receiver<ConfigurationCommands>;
@@ -118,18 +119,27 @@ impl ConfigurationManager {
     ) -> Result<Arc<ServerList>> {
         let mut current_servers = Self::load_servers(config_db)?;
 
+        let mut tasks = Vec::new();
+
         for addr in addresses {
-            Self::download_server_met(&addr.url)
-                .await
-                .and_then(|resp| {
-                    let parsed_servers = parsers::parse_servers(&resp)?;
-                    for s in parsed_servers {
-                        //     //current_servers.add_server(s);
-                    }
-                    Ok(())
-                })?;
+            let url = addr.url.clone();
+            tasks.push(tokio::spawn(async move {
+                match Self::download_server_met(&url).await {
+                    Ok(resp) => parsers::parse_servers(&resp).unwrap(),
+                    Err(_) => Vec::new(),
+                }
+            }));
         }
 
+        // Vec<Result<Vec<ParsedServer>>
+        let results = join_all(tasks).await;
+        let all_parsed_servers: Vec<_> = results
+            .into_iter()
+            .filter_map(Result::ok)
+            .flatten()
+            .collect();
+
+        info!("Retrieved {} parsed servers", all_parsed_servers.len());
         Ok(current_servers)
     }
 

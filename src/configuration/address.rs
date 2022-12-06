@@ -55,41 +55,41 @@ impl AddressList {
             addresses.insert_address(db, "http://peerates.net/server.met", "DEFAULT")?;
             addresses.insert_address(db, "http://shortypower.dyndns.org/server.met", "DEFAULT")?;
 
-            // 3 files from http://www.server-met.de/
-            addresses.insert_address(
-                db,
-                "http://www.server-met.de/dl.php?load=gz",
-                "DEFAULT, Curated (best) from this site",
-            )?;
-            addresses.insert_address(
-                db,
-                "http://www.server-met.de/dl.php?load=min",
-                "DEFAULT, Curated (medium) from this site",
-            )?;
-            addresses.insert_address(
-                db,
-                "http://www.server-met.de/dl.php?load=max",
-                "DEFAULT, Curated (All) from this site",
-            )?;
+            // // 3 files from http://www.server-met.de/
+            // addresses.insert_address(
+            //     db,
+            //     "http://www.server-met.de/dl.php?load=gz",
+            //     "DEFAULT, Curated (best) from this site",
+            // )?;
+            // addresses.insert_address(
+            //     db,
+            //     "http://www.server-met.de/dl.php?load=min",
+            //     "DEFAULT, Curated (medium) from this site",
+            // )?;
+            // addresses.insert_address(
+            //     db,
+            //     "http://www.server-met.de/dl.php?load=max",
+            //     "DEFAULT, Curated (All) from this site",
+            // )?;
 
-            // 3 files from http://ed2k.2x4u.de/index.html/
-            addresses.insert_address(
-                db,
-                "http://ed2k.2x4u.de/v1s4vbaf/micro/server.met",
-                "DEFAULT, Curated (All) from this site",
-            )?;
+            // // 3 files from http://ed2k.2x4u.de/index.html/
+            // addresses.insert_address(
+            //     db,
+            //     "http://ed2k.2x4u.de/v1s4vbaf/micro/server.met",
+            //     "DEFAULT, Curated (All) from this site",
+            // )?;
 
-            addresses.insert_address(
-                db,
-                "http://ed2k.2x4u.de/v1s4vbaf/min/server.met",
-                "DEFAULT, Curated (All) from this site",
-            )?;
+            // addresses.insert_address(
+            //     db,
+            //     "http://ed2k.2x4u.de/v1s4vbaf/min/server.met",
+            //     "DEFAULT, Curated (All) from this site",
+            // )?;
 
-            addresses.insert_address(
-                db,
-                "http://ed2k.2x4u.de/v1s4vbaf/max/server.met",
-                "DEFAULT, Curated (All) from this site",
-            )?;
+            // addresses.insert_address(
+            //     db,
+            //     "http://ed2k.2x4u.de/v1s4vbaf/max/server.met",
+            //     "DEFAULT, Curated (All) from this site",
+            // )?;
 
             Ok(addresses)
         } else {
