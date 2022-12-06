@@ -10,6 +10,7 @@ pub struct Settings {
     /// Default downloads directory to be used if not set on the TempDirectory
     /// or on the download itself.
     pub default_downloads_directory: DatabasePathBuf,
+    pub auto_update_server_list: bool,
 }
 
 impl TryFrom<&Row<'_>> for Settings {
@@ -20,6 +21,7 @@ impl TryFrom<&Row<'_>> for Settings {
         Ok(Self {
             nick_name: row.get("nick_name")?,
             default_downloads_directory: row.get("default_downloads_directory")?,
+            auto_update_server_list: row.get("auto_update_server_list")?,
         })
     }
 }
@@ -39,6 +41,7 @@ impl Settings {
             let default_settings = Self {
                 nick_name: "http://www.rMule.org".to_owned(),
                 default_downloads_directory: ddir_pb.into(),
+                auto_update_server_list: true,
             };
 
             default_settings.insert(db)?;
@@ -75,11 +78,13 @@ impl Settings {
             r#"UPDATE settings SET
                 nick_name = ?1,
                 default_downloads_directory = ?2,
-                updated = ?3
+                auto_update_server_list = ?3
+                updated = ?4
             "#,
             params![
                 self.nick_name,
                 self.default_downloads_directory,
+                self.auto_update_server_list,
                 DatabaseTime::now()
             ],
         )?;
@@ -90,10 +95,14 @@ impl Settings {
 
     pub fn insert(&self, db: &ConfigurationDb) -> Result<()> {
         db.conn().execute(
-            r#"INSERT INTO settings(nick_name, default_downloads_directory)
-                VALUES(?1, ?2);
+            r#"INSERT INTO settings(nick_name, default_downloads_directory, auto_update_server_list)
+                VALUES(?1, ?2, ?3);
             "#,
-            params![self.nick_name, self.default_downloads_directory],
+            params![
+                self.nick_name,
+                self.default_downloads_directory,
+                self.auto_update_server_list
+            ],
         )?;
 
         info!("Inserted Settings to the settings table");

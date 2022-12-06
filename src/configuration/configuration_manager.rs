@@ -1,11 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::parsers;
+
 use super::{AddressList, ConfigurationDb, ServerList, Settings, TempDirectoryList};
 use anyhow::Result;
-use tokio::sync::broadcast::Sender;
-use tokio::sync::mpsc::Receiver;
 use tokio::sync::{broadcast, mpsc};
+use tracing::{info, warn};
 
 pub type ConfigurationCommandSender = mpsc::Sender<ConfigurationCommands>;
 pub type ConfigurationCommandReceiver = mpsc::Receiver<ConfigurationCommands>;
@@ -13,19 +14,22 @@ pub type ConfigurationCommandReceiver = mpsc::Receiver<ConfigurationCommands>;
 pub type ConfigurationEventSender = broadcast::Sender<ConfigurationEvents>;
 pub type ConfigurationEventReceiver = broadcast::Receiver<ConfigurationEvents>;
 
-/// The handle type allows commands to be sent and events to be received
+/// The handle type allows commands to be sent to and events to be received
 /// from the Configuration Manager.
 pub struct ConfigurationManagerHandle {
+    /// The cmd_sender is used to send commands to the ConfigurationManager.
     cmd_sender: ConfigurationCommandSender,
+    /// The evt_sender is required so that callers can subscribe to events.
+    /// It is not used to actually send any events. This is a bit strange.
     evt_sender: ConfigurationEventSender,
     // TODO: Without this we cannot emit events.
     evt_receiver: ConfigurationEventReceiver,
 }
 
 impl ConfigurationManagerHandle {
-    pub fn new(config_dir: &Path) -> Result<Self> {
-        let (cmd_sender, cmd_receiver) = Self::make_command_channel();
-        let (evt_sender, evt_receiver) = Self::make_event_channel();
+    pub async fn new(config_dir: &Path) -> Result<Self> {
+        let (cmd_sender, cmd_receiver) = mpsc::channel::<ConfigurationCommands>(32);
+        let (evt_sender, evt_receiver) = broadcast::channel::<ConfigurationEvents>(32);
         let evt_sender2 = evt_sender.clone();
 
         let handle = ConfigurationManagerHandle {
@@ -37,7 +41,7 @@ impl ConfigurationManagerHandle {
         // Construct a new ConfigurationManager to manage the connection
         // to the configuration database.
         let mut mgr = ConfigurationManager::new(evt_sender2, cmd_receiver, config_dir);
-        mgr.load_all_configuration()?;
+        mgr.load_all_configuration().await?;
 
         // Spawn a new task to make the ConfigurationManager respond to events.
         tokio::task::Builder::new()
@@ -59,21 +63,11 @@ impl ConfigurationManagerHandle {
     pub fn make_command_sender(&self) -> ConfigurationCommandSender {
         self.cmd_sender.clone()
     }
-
-    /// Channel used by other components to send commands to the Configuration
-    /// Manager.
-    fn make_command_channel() -> (ConfigurationCommandSender, ConfigurationCommandReceiver) {
-        mpsc::channel::<ConfigurationCommands>(32)
-    }
-
-    /// Channel used by the Configuration Manager to emit events.
-    fn make_event_channel() -> (ConfigurationEventSender, ConfigurationEventReceiver) {
-        broadcast::channel::<ConfigurationEvents>(32)
-    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ConfigurationCommands {
+    UpdateServerList,
     Shutdown,
 }
 
@@ -88,15 +82,15 @@ pub enum ConfigurationEvents {
 
 pub struct ConfigurationManager {
     config_dir: PathBuf,
-    events_sender: Sender<ConfigurationEvents>,
-    commands_receiver: Receiver<ConfigurationCommands>,
+    events_sender: ConfigurationEventSender,
+    commands_receiver: ConfigurationCommandReceiver,
     config_db: Option<ConfigurationDb>,
 }
 
 impl ConfigurationManager {
     pub fn new<P>(
-        events_sender: Sender<ConfigurationEvents>,
-        commands_receiver: Receiver<ConfigurationCommands>,
+        events_sender: ConfigurationEventSender,
+        commands_receiver: ConfigurationCommandReceiver,
         config_dir: P,
     ) -> Self
     where
@@ -110,17 +104,71 @@ impl ConfigurationManager {
         }
     }
 
-    pub fn load_all_configuration(&mut self) -> Result<()> {
+    async fn download_server_met(url: &str) -> Result<Vec<u8>> {
+        info!("Downloading server.met from {}", url);
+        let resp_bytes = reqwest::get(url).await?.bytes().await?;
+        info!("Received {} bytes", resp_bytes.len());
+        Ok(resp_bytes[..].to_vec())
+    }
+
+    async fn auto_update_server_list(
+        &self,
+        config_db: &ConfigurationDb,
+        addresses: &AddressList,
+    ) -> Result<Arc<ServerList>> {
+        let mut current_servers = Self::load_servers(config_db)?;
+
+        for addr in addresses {
+            Self::download_server_met(&addr.url)
+                .await
+                .and_then(|resp| {
+                    let parsed_servers = parsers::parse_servers(&resp)?;
+                    for s in parsed_servers {
+                        //     //current_servers.add_server(s);
+                    }
+                    Ok(())
+                })?;
+        }
+
+        Ok(current_servers)
+    }
+
+    pub async fn load_all_configuration(&mut self) -> Result<()> {
         let config_db = ConfigurationDb::open(&self.config_dir)?;
 
-        self.load_settings(&config_db)?;
-        self.load_address_list(&config_db)?;
-        self.load_temp_directories(&config_db)?;
-        self.load_servers(&config_db)?;
+        let settings = Self::load_settings(&config_db)?;
+        let address_list = Self::load_address_list(&config_db)?;
 
+        let servers;
+        if settings.auto_update_server_list {
+            if address_list.is_empty() {
+                warn!("Cannot auto-update server list due to empty address table");
+                servers = Self::load_servers(&config_db)?;
+            } else {
+                servers = self
+                    .auto_update_server_list(&config_db, &address_list)
+                    .await?;
+            }
+        } else {
+            servers = Self::load_servers(&config_db)?;
+        }
+
+        let temp_dirs = Self::load_temp_directories(&config_db)?;
+
+        // Store this for later use.
         self.config_db = Some(config_db);
 
-        // Tell everybody we are ready.
+        // Notify everybody of loaded data.
+        self.events_sender
+            .send(ConfigurationEvents::SettingsChange(settings))?;
+        self.events_sender
+            .send(ConfigurationEvents::AddressListChange(address_list))?;
+        self.events_sender
+            .send(ConfigurationEvents::TempDirectoryListChange(temp_dirs))?;
+        self.events_sender
+            .send(ConfigurationEvents::ServerListChange(servers))?;
+
+        // Tell everybody we are done with initial load.
         self.events_sender.send(ConfigurationEvents::InitComplete)?;
 
         Ok(())
@@ -140,35 +188,35 @@ impl ConfigurationManager {
 
     fn shutdown(&mut self) {}
 
-    fn load_settings(&self, config_db: &ConfigurationDb) -> Result<(), anyhow::Error> {
-        let settings = Settings::load(config_db)?;
-        self.events_sender
-            .send(ConfigurationEvents::SettingsChange(Arc::new(settings)))?;
-        Ok(())
+    fn load_settings(config_db: &ConfigurationDb) -> Result<Arc<Settings>> {
+        Ok(Arc::new(Settings::load(config_db)?))
+        // self.events_sender
+        //     .send(ConfigurationEvents::SettingsChange(Arc::new(settings)))?;
+        // Ok(())
     }
 
-    fn load_address_list(&self, config_db: &ConfigurationDb) -> Result<(), anyhow::Error> {
-        let address_list = AddressList::load_all(config_db)?;
-        self.events_sender
-            .send(ConfigurationEvents::AddressListChange(Arc::new(
-                address_list,
-            )))?;
-        Ok(())
+    fn load_address_list(config_db: &ConfigurationDb) -> Result<Arc<AddressList>, anyhow::Error> {
+        Ok(Arc::new(AddressList::load_all(config_db)?))
+        // self.events_sender
+        //     .send(ConfigurationEvents::AddressListChange(Arc::new(
+        //         address_list,
+        //     )))?;
+        // Ok(())
     }
 
-    fn load_temp_directories(&self, config_db: &ConfigurationDb) -> Result<()> {
-        let temp_dirs = TempDirectoryList::load_all(config_db)?;
-        self.events_sender
-            .send(ConfigurationEvents::TempDirectoryListChange(Arc::new(
-                temp_dirs,
-            )))?;
-        Ok(())
+    fn load_temp_directories(config_db: &ConfigurationDb) -> Result<Arc<TempDirectoryList>> {
+        Ok(Arc::new(TempDirectoryList::load_all(config_db)?))
+        // self.events_sender
+        //     .send(ConfigurationEvents::TempDirectoryListChange(Arc::new(
+        //         temp_dirs,
+        //     )))?;
+        // Ok(())
     }
 
-    fn load_servers(&self, config_db: &ConfigurationDb) -> Result<()> {
-        let servers = ServerList::load_all(config_db)?;
-        self.events_sender
-            .send(ConfigurationEvents::ServerListChange(Arc::new(servers)))?;
-        Ok(())
+    fn load_servers(config_db: &ConfigurationDb) -> Result<Arc<ServerList>> {
+        Ok(Arc::new(ServerList::load_all(config_db)?))
+        // self.events_sender
+        //     .send(ConfigurationEvents::ServerListChange(Arc::new(servers)))?;
+        // Ok(())
     }
 }

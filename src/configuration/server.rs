@@ -103,4 +103,33 @@ impl ServerList {
 
         Ok(Self { servers })
     }
+
+    pub fn add_server(&mut self, server: Server) {}
+}
+
+impl IntoIterator for ServerList {
+    type Item = Server;
+    type IntoIter = std::vec::IntoIter<Server>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.servers.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a ServerList {
+    type Item = &'a Server;
+    type IntoIter = std::slice::Iter<'a, Server>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.servers.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut ServerList {
+    type Item = &'a mut Server;
+    type IntoIter = std::slice::IterMut<'a, Server>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.servers.iter_mut()
+    }
 }

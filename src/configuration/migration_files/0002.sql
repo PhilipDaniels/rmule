@@ -8,5 +8,6 @@ CREATE TABLE address
     created TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
     updated TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
     url TEXT NOT NULL,
+    description TEXT NOT NULL,
     active INTEGER NOT NULL
     );

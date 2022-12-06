@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
     // Initialise the Tokio tracing system.
     let subscriber = FmtSubscriber::builder()
         .compact()
-        .with_max_level(Level::TRACE)
+        .with_max_level(Level::INFO)
         .with_file(false)
         .with_line_number(false)
         .finish();
@@ -86,7 +86,7 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    let _cfg_mgr_handle = ConfigurationManagerHandle::new(&config_dir)?;
+    let _cfg_mgr_handle = ConfigurationManagerHandle::new(&config_dir).await?;
 
     // Without this, the process will exit before the Configuration Manager
     // background task has had chance to run and load all data.
