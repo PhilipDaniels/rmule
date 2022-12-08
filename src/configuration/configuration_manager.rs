@@ -115,7 +115,7 @@ impl ConfigurationManager {
             .await
             .with_context(|| format!("Could not extract bytes from response from {}", url))?;
 
-        info!("Received {} bytes", resp_bytes.len());
+        info!("Received {} bytes from {}", resp_bytes.len(), url);
 
         Ok(resp_bytes[..].to_vec())
     }
