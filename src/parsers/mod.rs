@@ -12,6 +12,8 @@ pub struct ParsedServer {
     pub port: u16,
     pub name: String,
     pub description: String,
+    pub user_count: u32,
+    pub low_users: u32,
 }
 
 pub fn parse_servers(input: &[u8]) -> Result<Vec<ParsedServer>> {
@@ -67,6 +69,8 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
         port,
         name: "".to_owned(),
         description: "".to_owned(),
+        user_count: 0,
+        low_users: 0,
     };
 
     for idx in 0..tag_count {
@@ -87,7 +91,8 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
             ParsedTag::AuxPortsList(_) => todo!(),
             ParsedTag::LowIdClients(_) => todo!(),
             ParsedTag::FileCount(_) => todo!(),
-            ParsedTag::UserCount(_) => todo!(),
+            ParsedTag::UserCount(n) => server.user_count = n,
+            ParsedTag::LowUsers(n) => server.low_users = n,
         }
     }
 
@@ -111,6 +116,7 @@ enum ParsedTag {
     LowIdClients(u32),
     FileCount(u32),
     UserCount(u32),
+    LowUsers(u32),
 }
 
 fn read_string(input: &mut Cursor<&[u8]>, length: usize) -> Result<String> {
@@ -121,7 +127,7 @@ fn read_string(input: &mut Cursor<&[u8]>, length: usize) -> Result<String> {
 
 fn parse_tag(input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
     let uName: u8;
-    let mut mName: Option<String> = None;
+    let mut mName: String = "".into();
 
     let mut uType = input.read_u8().with_context(|| "Could not read tag type")?;
     println!("\n\nGot tag type of {uType}");
@@ -140,27 +146,37 @@ fn parse_tag(input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
             uName = input.read_u8().with_context(|| "Could not read XXX")?;
         } else {
             uName = 0;
-            mName = Some(read_string(input, tag_name_length as usize)?);
+            mName = read_string(input, tag_name_length as usize)?;
         }
     }
 
     println!("utype={uType}, uname={uName}, mName={:?}", mName);
 
-    let mut string_value = "".to_owned();
+    let mut string_tag_value = "".to_owned();
+    let mut numeric_tag_value = 0;
+
     if uType == 2 {
         let string_len = input.read_u16::<LittleEndian>()?;
         println!("We are reading a string of length {string_len}");
-        string_value = read_string(input, string_len as usize)?;
-        println!("Got string_value of {string_value}");
+        string_tag_value = read_string(input, string_len as usize)?;
+        println!("Got string_tag_value of {string_tag_value}");
     } else if uType == 3 {
-        println!("We are reading a numeric tag");
+        println!("We are reading a numeric tag named '{}'", mName);
+        numeric_tag_value = input.read_u32::<LittleEndian>()?;
+        println!("Got numeric_tag_value of {numeric_tag_value}");
     } else {
         println!("We appear to have gone wrong!");
     }
 
     Ok(match uName {
-        0x01 => ParsedTag::ServerName(string_value),
-        0x0B => ParsedTag::Description(string_value),
+        0x01 => ParsedTag::ServerName(string_tag_value),
+        0x0B => ParsedTag::Description(string_tag_value),
+        0 => match mName.as_ref() {
+            "users" => ParsedTag::UserCount(numeric_tag_value),
+            "lowusers" => ParsedTag::LowUsers(numeric_tag_value),
+            _ => panic!("Unhandled named numeric tag"),
+        },
+
         _ => panic!("Unhandled case"),
     })
 }
@@ -170,7 +186,7 @@ mod test {
     use super::parse_servers;
     use std::net::IpAddr;
 
-    #[test]
+    //#[test]
     pub fn test_parse_of_valid_server_data_minimal() {
         // This is a minimal, uncompressed file with only server name and description
         // tags.
@@ -213,5 +229,19 @@ mod test {
         assert_eq!(s.port, 4232);
         assert_eq!(s.name, "!! Sharing-Devils No.1 !!");
         assert_eq!(s.description, "https://forum.sharing-devils.to");
+    }
+
+    #[test]
+    pub fn test_parse_of_valid_server_data_maximal() {
+        // This is a maximal, uncompressed file with most tags set.
+        let input = include_bytes!("shortypower.org.server.met");
+        let servers = parse_servers(input).unwrap();
+        assert_eq!(servers.len(), 10);
+
+        let s = &servers[0];
+        assert_eq!(s.ip_addr, IpAddr::from([176, 123, 5, 89]));
+        assert_eq!(s.port, 4725);
+        assert_eq!(s.name, "eMule Sunrise");
+        assert_eq!(s.description, "Not perfect, but real");
     }
 }

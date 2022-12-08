@@ -72,7 +72,7 @@ impl AddressList {
             //     "DEFAULT, Curated (All) from this site",
             // )?;
 
-            // // 3 files from http://ed2k.2x4u.de/index.html/
+            // // 3 files from http://ed2k.2x4u.de/index.html
             // addresses.insert_address(
             //     db,
             //     "http://ed2k.2x4u.de/v1s4vbaf/micro/server.met",
