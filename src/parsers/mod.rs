@@ -13,7 +13,8 @@ pub struct ParsedServer {
     pub name: String,
     pub description: String,
     pub user_count: u32,
-    pub low_users: u32,
+    pub low_id_user_count: u32,
+    pub ping: u32,
 }
 
 pub fn parse_servers(input: &[u8]) -> Result<Vec<ParsedServer>> {
@@ -70,7 +71,8 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
         name: "".to_owned(),
         description: "".to_owned(),
         user_count: 0,
-        low_users: 0,
+        low_id_user_count: 0,
+        ping: 0,
     };
 
     for idx in 0..tag_count {
@@ -78,7 +80,7 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
         match tag {
             ParsedTag::ServerName(s) => server.name = s,
             ParsedTag::Description(d) => server.description = d,
-            ParsedTag::Ping(_) => todo!(),
+            ParsedTag::Ping(n) => server.ping = n,
             ParsedTag::Fail(_) => todo!(),
             ParsedTag::Preference(_) => todo!(),
             ParsedTag::DNS(_) => todo!(),
@@ -92,7 +94,7 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
             ParsedTag::LowIdClients(_) => todo!(),
             ParsedTag::FileCount(_) => todo!(),
             ParsedTag::UserCount(n) => server.user_count = n,
-            ParsedTag::LowUsers(n) => server.low_users = n,
+            ParsedTag::LowIdUserCount(n) => server.low_id_user_count = n,
         }
     }
 
@@ -116,7 +118,7 @@ enum ParsedTag {
     LowIdClients(u32),
     FileCount(u32),
     UserCount(u32),
-    LowUsers(u32),
+    LowIdUserCount(u32),
 }
 
 fn read_string(input: &mut Cursor<&[u8]>, length: usize) -> Result<String> {
@@ -171,13 +173,14 @@ fn parse_tag(input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
     Ok(match uName {
         0x01 => ParsedTag::ServerName(string_tag_value),
         0x0B => ParsedTag::Description(string_tag_value),
+        0x0C => ParsedTag::Ping(numeric_tag_value),
+        // TODO: Make this NONE
         0 => match mName.as_ref() {
             "users" => ParsedTag::UserCount(numeric_tag_value),
-            "lowusers" => ParsedTag::LowUsers(numeric_tag_value),
+            "lowusers" => ParsedTag::LowIdUserCount(numeric_tag_value),
             _ => panic!("Unhandled named numeric tag"),
         },
-
-        _ => panic!("Unhandled case"),
+        _ => panic!("Unhandled uName case"),
     })
 }
 
