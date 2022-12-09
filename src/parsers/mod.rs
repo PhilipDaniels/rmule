@@ -49,6 +49,8 @@ pub fn parse_servers(input: &[u8]) -> Result<Vec<ParsedServer>> {
 }
 
 fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
+    // Yes, BigEndian, but when converted to an IP address
+    // it comes out right.
     let ip_addr = input
         .read_u32::<BigEndian>()
         .with_context(|| "Could not read IP address")?;
@@ -75,6 +77,14 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
 
     for idx in 0..tag_count {
         let tag = parse_tag(input)?;
+
+        // Parsed a tag we don't support?
+        if tag.is_none() {
+            continue;
+        }
+
+        let tag = tag.unwrap();
+
         match tag {
             ParsedTag::ServerName(s) => server.name = Some(s),
             ParsedTag::Description(d) => server.description = Some(d),
@@ -125,7 +135,12 @@ fn read_string(input: &mut Cursor<&[u8]>, length: usize) -> Result<String> {
     Ok(String::from_utf8(buf)?)
 }
 
-fn parse_tag(input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
+// Parses a single tag. If we encounter a tag that we do not
+// recognise then we return None. This gives us forward compatibility
+// with any tags that might suddenly appear out in the wild reaches
+// of t'internet (and means that we don't need to support everything
+// that *already* exists.)
+fn parse_tag(input: &mut Cursor<&[u8]>) -> Result<Option<ParsedTag>> {
     let uName: u8;
     let mut mName: String = "".into();
 
@@ -168,7 +183,7 @@ fn parse_tag(input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
         println!("We appear to have gone wrong!");
     }
 
-    Ok(match uName {
+    let tag = match uName {
         0x01 => ParsedTag::ServerName(string_tag_value),
         0x0B => ParsedTag::Description(string_tag_value),
         0x0C => ParsedTag::Ping(numeric_tag_value),
@@ -179,7 +194,9 @@ fn parse_tag(input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
             _ => panic!("Unhandled named numeric tag"),
         },
         _ => panic!("Unhandled uName case"),
-    })
+    };
+
+    Ok(Some(tag))
 }
 
 #[cfg(test)]
