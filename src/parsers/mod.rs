@@ -42,8 +42,7 @@ pub fn parse_servers(input: &[u8]) -> Result<Vec<ParsedServer>> {
     let mut servers = Vec::new();
 
     for idx in 0..server_count {
-        let server = parse_server(&mut input)?;
-        servers.push(server);
+        servers.push(parse_server(&mut input)?);
     }
 
     Ok(servers)
@@ -62,9 +61,8 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
         .read_u32::<LittleEndian>()
         .with_context(|| "Could not read tag count")?;
 
-    println!("expect {} tags", tag_count);
+    println!("Expecting {} tags", tag_count);
 
-    // TODO: Consider the builder pattern.
     let mut server = ParsedServer {
         ip_addr: Ipv4Addr::from(ip_addr).into(),
         port,

@@ -134,8 +134,12 @@ impl ConfigurationManager {
         for addr in addresses {
             let url = addr.url.clone();
             tasks.push(tokio::spawn(async move {
+                // If an eror occurs during download or parsing, do not abort the
+                // program. Updating the server list is an "optional extra" and we
+                // should not stop rMule from running because we got some bad data
+                // from the internet.
                 match Self::download_server_met(&url).await {
-                    Ok(resp) => parsers::parse_servers(&resp).unwrap(),
+                    Ok(resp) => parsers::parse_servers(&resp).unwrap_or_else(|_| Vec::new()),
                     Err(_) => Vec::new(),
                 }
             }));
