@@ -10,11 +10,11 @@ use std::net::{IpAddr, Ipv4Addr};
 pub struct ParsedServer {
     pub ip_addr: IpAddr,
     pub port: u16,
-    pub name: String,
-    pub description: String,
-    pub user_count: u32,
-    pub low_id_user_count: u32,
-    pub ping: u32,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub user_count: Option<u32>,
+    pub low_id_user_count: Option<u32>,
+    pub ping: Option<u32>,
 }
 
 pub fn parse_servers(input: &[u8]) -> Result<Vec<ParsedServer>> {
@@ -68,19 +68,19 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
     let mut server = ParsedServer {
         ip_addr: Ipv4Addr::from(ip_addr).into(),
         port,
-        name: "".to_owned(),
-        description: "".to_owned(),
-        user_count: 0,
-        low_id_user_count: 0,
-        ping: 0,
+        name: None,
+        description: None,
+        user_count: None,
+        low_id_user_count: None,
+        ping: None,
     };
 
     for idx in 0..tag_count {
         let tag = parse_tag(input)?;
         match tag {
-            ParsedTag::ServerName(s) => server.name = s,
-            ParsedTag::Description(d) => server.description = d,
-            ParsedTag::Ping(n) => server.ping = n,
+            ParsedTag::ServerName(s) => server.name = Some(s),
+            ParsedTag::Description(d) => server.description = Some(d),
+            ParsedTag::Ping(n) => server.ping = Some(n),
             ParsedTag::Fail(_) => todo!(),
             ParsedTag::Preference(_) => todo!(),
             ParsedTag::DNS(_) => todo!(),
@@ -93,8 +93,8 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
             ParsedTag::AuxPortsList(_) => todo!(),
             ParsedTag::LowIdClients(_) => todo!(),
             ParsedTag::FileCount(_) => todo!(),
-            ParsedTag::UserCount(n) => server.user_count = n,
-            ParsedTag::LowIdUserCount(n) => server.low_id_user_count = n,
+            ParsedTag::UserCount(n) => server.user_count = Some(n),
+            ParsedTag::LowIdUserCount(n) => server.low_id_user_count = Some(n),
         }
     }
 
@@ -200,38 +200,44 @@ mod test {
         let s = &servers[0];
         assert_eq!(s.ip_addr, IpAddr::from([212, 83, 184, 152]));
         assert_eq!(s.port, 7111);
-        assert_eq!(s.name, "PeerBooter");
-        assert_eq!(s.description, "eDonkey bridge for kademlia users");
+        assert_eq!(s.name.as_deref(), Some("PeerBooter"));
+        assert_eq!(
+            s.description.as_deref(),
+            Some("eDonkey bridge for kademlia users")
+        );
 
         let s = &servers[1];
         assert_eq!(s.ip_addr, IpAddr::from([183, 136, 232, 234]));
         assert_eq!(s.port, 4244);
-        assert_eq!(s.name, "WEB");
-        assert_eq!(s.description, "eserver 17.15");
+        assert_eq!(s.name.as_deref(), Some("WEB"));
+        assert_eq!(s.description.as_deref(), Some("eserver 17.15"));
 
         let s = &servers[2];
         assert_eq!(s.ip_addr, IpAddr::from([80, 208, 228, 241]));
         assert_eq!(s.port, 8369);
-        assert_eq!(s.name, "eMule Security");
-        assert_eq!(s.description, "www.emule-security.org");
+        assert_eq!(s.name.as_deref(), Some("eMule Security"));
+        assert_eq!(s.description.as_deref(), Some("www.emule-security.org"));
 
         let s = &servers[3];
         assert_eq!(s.ip_addr, IpAddr::from([62, 210, 28, 77]));
         assert_eq!(s.port, 7111);
-        assert_eq!(s.name, "PEERATES.NET");
-        assert_eq!(s.description, "http://edk.peerates.net");
+        assert_eq!(s.name.as_deref(), Some("PEERATES.NET"));
+        assert_eq!(s.description.as_deref(), Some("http://edk.peerates.net"));
 
         let s = &servers[4];
         assert_eq!(s.ip_addr, IpAddr::from([47, 37, 145, 12]));
         assert_eq!(s.port, 28288);
-        assert_eq!(s.name, "new server");
-        assert_eq!(s.description, "edonkey server");
+        assert_eq!(s.name.as_deref(), Some("new server"));
+        assert_eq!(s.description.as_deref(), Some("edonkey server"));
 
         let s = &servers[5];
         assert_eq!(s.ip_addr, IpAddr::from([91, 208, 184, 143]));
         assert_eq!(s.port, 4232);
-        assert_eq!(s.name, "!! Sharing-Devils No.1 !!");
-        assert_eq!(s.description, "https://forum.sharing-devils.to");
+        assert_eq!(s.name.as_deref(), Some("!! Sharing-Devils No.1 !!"));
+        assert_eq!(
+            s.description.as_deref(),
+            Some("https://forum.sharing-devils.to")
+        );
     }
 
     #[test]
@@ -244,7 +250,7 @@ mod test {
         let s = &servers[0];
         assert_eq!(s.ip_addr, IpAddr::from([176, 123, 5, 89]));
         assert_eq!(s.port, 4725);
-        assert_eq!(s.name, "eMule Sunrise");
-        assert_eq!(s.description, "Not perfect, but real");
+        assert_eq!(s.name.as_deref(), Some("eMule Sunrise"));
+        assert_eq!(s.description.as_deref(), Some("Not perfect, but real"));
     }
 }
