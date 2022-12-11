@@ -108,13 +108,6 @@ fn parse_server(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
     for idx in 0..tag_count {
         let tag = parse_tag(url, input)?;
 
-        // Parsed a tag we don't support?
-        if tag.is_none() {
-            continue;
-        }
-
-        let tag = tag.unwrap();
-
         match tag {
             ParsedTag::NoTag => {}
             ParsedTag::ServerName(s) => server.name = Some(s),
@@ -169,18 +162,12 @@ enum ParsedTag {
     UdpObfuscationPort(u16),
 }
 
-fn read_string(input: &mut Cursor<&[u8]>, length: usize) -> Result<String> {
-    let mut buf = vec![0u8; length];
-    input.read_exact(&mut buf)?;
-    Ok(String::from_utf8(buf)?)
-}
-
 // Parses a single tag. If we encounter a tag that we do not
 // recognise then we return None. This gives us forward compatibility
 // with any tags that might suddenly appear out in the wild reaches
 // of t'internet (and means that we don't need to support everything
 // that *already* exists.)
-fn parse_tag(url: &str, input: &mut Cursor<&[u8]>) -> Result<Option<ParsedTag>> {
+fn parse_tag(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
     let mut tag_type = input
         .read_u8()
         .with_context(|| format!("{url}: Could not read tag_type"))?;
@@ -349,7 +336,13 @@ fn parse_tag(url: &str, input: &mut Cursor<&[u8]>) -> Result<Option<ParsedTag>> 
         }
     };
 
-    Ok(Some(tag))
+    Ok(tag)
+}
+
+fn read_string(input: &mut Cursor<&[u8]>, length: usize) -> Result<String> {
+    let mut buf = vec![0u8; length];
+    input.read_exact(&mut buf)?;
+    Ok(String::from_utf8(buf)?)
 }
 
 #[cfg(test)]
@@ -357,7 +350,7 @@ mod test {
     use super::parse_servers;
     use std::net::IpAddr;
 
-    //#[test]
+    #[test]
     pub fn test_parse_of_valid_server_data_minimal() {
         // This is a minimal, uncompressed file with only server name and description
         // tags.
