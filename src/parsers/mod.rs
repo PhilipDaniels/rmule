@@ -16,7 +16,7 @@ pub struct ParsedServer {
     pub low_id_user_count: Option<u32>,
     pub ping: Option<u32>,
     pub country: Option<String>,
-    pub max_users: Option<u32>,
+    pub max_user_count: Option<u32>,
     pub file_count: Option<u32>,
     pub soft_file_limit: Option<u32>,
     pub hard_file_limit: Option<u32>,
@@ -89,7 +89,7 @@ fn parse_server(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
         ping: None,
         country: None,
         file_count: None,
-        max_users: None,
+        max_user_count: None,
         soft_file_limit: None,
         hard_file_limit: None,
         udp_flags: None,
@@ -113,7 +113,7 @@ fn parse_server(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
             ParsedTag::ServerName(s) => server.name = Some(s),
             ParsedTag::Description(d) => server.description = Some(d),
             ParsedTag::Ping(n) => server.ping = Some(n),
-            ParsedTag::MaxUsers(n) => server.max_users = Some(n),
+            ParsedTag::MaxUsers(n) => server.max_user_count = Some(n),
             ParsedTag::SoftFiles(n) => server.soft_file_limit = Some(n),
             ParsedTag::HardFiles(n) => server.hard_file_limit = Some(n),
             ParsedTag::Version(s) => server.version = Some(s),
@@ -416,7 +416,7 @@ mod test {
         assert_eq!(s.user_count, Some(10_114));
         assert_eq!(s.low_id_user_count, Some(7_583));
         assert_eq!(s.file_count, Some(5_120_913));
-        assert_eq!(s.max_users, Some(50_000));
+        assert_eq!(s.max_user_count, Some(50_000));
         assert_eq!(s.country.as_deref(), Some("md")); // Moldova
         assert_eq!(s.soft_file_limit, Some(100_000));
         assert_eq!(s.hard_file_limit, Some(100_001));

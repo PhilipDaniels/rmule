@@ -16,7 +16,7 @@ pub struct Settings {
 impl TryFrom<&Row<'_>> for Settings {
     type Error = rusqlite::Error;
 
-    /// Convert a Rusqlite row to a Settings value.
+    /// Build a Settings value from a Rusqlite Row.
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
             nick_name: row.get("nick_name")?,

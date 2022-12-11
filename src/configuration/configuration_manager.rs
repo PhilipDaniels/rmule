@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::configuration::Server;
 use crate::parsers;
 
 use super::{AddressList, ConfigurationDb, ServerList, Settings, TempDirectoryList};
@@ -127,7 +128,7 @@ impl ConfigurationManager {
     ) -> Result<Arc<ServerList>> {
         info!("Auto-updating server list");
 
-        let mut current_servers = Self::load_servers(config_db)?;
+        let mut current_servers = ServerList::load_all(config_db)?;
 
         let mut tasks = Vec::new();
 
@@ -156,7 +157,9 @@ impl ConfigurationManager {
         all_parsed_servers.dedup_by(|a, b| a.ip_addr == b.ip_addr);
         info!("Retrieved {} unique servers", all_parsed_servers.len());
 
-        Ok(current_servers)
+        current_servers.merge_parsed_servers(&all_parsed_servers);
+        ServerList::save_all(&mut current_servers, config_db)?;
+        Ok(Arc::new(current_servers))
     }
 
     pub async fn load_all_configuration(&mut self) -> Result<()> {

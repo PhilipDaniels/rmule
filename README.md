@@ -5,13 +5,14 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
+[ ] Refactor all TryFrom<Row> methods to use anyhow::Error;
+[ ] Remove database types such as DatabasePathBuf by creating a new
+    trait which adds methods to the Row type.
+    [ ] Also write a to_sqlx method.
+
 [ ] List of servers. See ServerList.cpp for operations.
-  [ ] Load list of servers
-  [ ] If any rows are found in addresses then we use them to auto-update the server list
   [ ] Write all servers back to server.met.
 [ ] Run as a daemon (PID file needed)
-[ ] Load server.met? Also see code on line 592 to auto-update the list.
-[ ] Download and test server.met with nom
 [ ] Caching.
   [ ] X minutes.
   [ ] If an entire file arrives without needing flushing to db we can write the whole
@@ -32,8 +33,6 @@ amule.cpp/364
   between the various subsystems of rMule.
 - [tracing](https://crates.io/crates/tracing), a.k.a. "tokio-tracing", is used for instrumentation.
 - [anyhow](https://crates.io/crates/anyhow) is used for error handling (really error type *conversion*) throughout.
-- [nom](https://crates.io/crates/nom) is used to parse legacy aMule/eMule file formats such as
-    [server.met](http://wiki.amule.org/t/index.php?title=Server.met_file)
 - [pico-args](https://crates.io/crates/pico-args) is used to parse the command line arguments. They're simple, and there is no need for something as heavyweight as [clap](https://crates.io/crates/clap).
 
 

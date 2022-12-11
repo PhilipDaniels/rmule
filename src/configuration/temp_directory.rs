@@ -1,9 +1,8 @@
-use std::path::Path;
-
 use super::sqlite_extensions::DatabasePathBuf;
 use super::ConfigurationDb;
 use anyhow::{bail, Result};
 use rusqlite::Row;
+use std::path::Path;
 use tracing::info;
 
 /// The rmule equivalent of the "temp directory" setting from emule.
@@ -25,7 +24,7 @@ pub struct TempDirectory {
 impl TryFrom<&Row<'_>> for TempDirectory {
     type Error = rusqlite::Error;
 
-    /// Convert a Rusqlite row to a TempDirectory value.
+    /// Build a TempDirectory value from a Rusqlite Row.
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
             id: row.get("id")?,

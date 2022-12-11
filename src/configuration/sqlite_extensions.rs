@@ -1,12 +1,12 @@
+use crate::{file, times};
+use anyhow::{bail, Result};
+use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput};
+use rusqlite::{Connection, Params, ToSql};
 use std::borrow::Cow;
+use std::net::IpAddr;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-
-use anyhow::{bail, Result};
-use rusqlite::types::{FromSql, FromSqlResult, ToSqlOutput};
-use rusqlite::{Connection, Params, ToSql};
-
-use crate::{file, times};
+use std::str::FromStr;
 
 pub trait ConnectionExtensions {
     /// Execute a scalar query. The query is expected to return 1 row with 1
@@ -128,5 +128,49 @@ impl From<&Path> for DatabasePathBuf {
 impl From<&str> for DatabasePathBuf {
     fn from(rhs: &str) -> Self {
         Self(rhs.into())
+    }
+}
+
+/// A type that represents an IpAddr as we hold them in SQLite.
+/// In the database they are stored as strings.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DatabaseIpAddr(IpAddr);
+
+impl Deref for DatabaseIpAddr {
+    type Target = IpAddr;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ToSql for DatabaseIpAddr {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        let ip_as_string: String = self.0.to_string().into();
+        Ok(ToSqlOutput::from(ip_as_string))
+    }
+}
+
+impl FromSql for DatabaseIpAddr {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> FromSqlResult<Self> {
+        let value = value.as_str()?;
+        let ip_addr = match IpAddr::from_str(value) {
+            Ok(ip) => ip,
+            Err(e) => return FromSqlResult::Err(FromSqlError::InvalidType),
+        };
+
+        FromSqlResult::Ok(Self(ip_addr))
+    }
+}
+
+impl From<IpAddr> for DatabaseIpAddr {
+    fn from(rhs: IpAddr) -> Self {
+        Self(rhs)
+    }
+}
+
+impl From<&IpAddr> for DatabaseIpAddr {
+    fn from(rhs: &IpAddr) -> Self {
+        Self(rhs.clone())
     }
 }

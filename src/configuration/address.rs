@@ -1,5 +1,5 @@
 use super::ConfigurationDb;
-use anyhow::{bail, Result};
+use anyhow::Result;
 use rusqlite::{params, Row};
 use tracing::{info, warn};
 
@@ -23,7 +23,7 @@ pub struct Address {
 impl TryFrom<&Row<'_>> for Address {
     type Error = rusqlite::Error;
 
-    /// Convert a Rusqlite row to an Address value.
+    /// Build an Address value from a Rusqlite Row.
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
             id: row.get("ïd")?,
