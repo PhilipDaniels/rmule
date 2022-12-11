@@ -5,6 +5,7 @@ use anyhow::{bail, Context, Result};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use std::io::{Cursor, Read};
 use std::net::{IpAddr, Ipv4Addr};
+use tracing::{error, info, warn};
 
 pub struct ParsedServer {
     pub ip_addr: IpAddr,
@@ -21,55 +22,62 @@ pub struct ParsedServer {
     pub hard_file_limit: Option<u32>,
     pub udp_flags: Option<u32>,
     pub version: Option<String>,
+    pub last_ping_time: Option<u32>,
+    pub udp_key: Option<u32>,
+    pub udp_key_ip_addr: Option<IpAddr>,
+    pub tcp_obfuscation_port: Option<u16>,
+    pub udp_obfuscation_port: Option<u16>,
+    pub dns: Option<String>,
+    pub preference: Option<u32>,
+    pub aux_ports_list: Option<Vec<u16>>,
+    pub fail_count: Option<u32>,
 }
 
-pub fn parse_servers(input: &[u8]) -> Result<Vec<ParsedServer>> {
+pub fn parse_servers(url: &str, input: &[u8]) -> Result<Vec<ParsedServer>> {
     let mut input = Cursor::new(input);
 
     let header_byte = input
         .read_u8()
-        .with_context(|| "Could not read header byte")?;
+        .with_context(|| format!("{url}: Could not read header byte"))?;
 
     if !(header_byte == 0x0E || header_byte == 0xE0) {
-        bail!("Header byte is {}, which is not valid", header_byte);
+        bail!("{url}: Header byte is {}, which is not valid", header_byte);
     }
 
     let server_count = input
         .read_u32::<LittleEndian>()
-        .with_context(|| "Could not read server count")?;
+        .with_context(|| format!("{url}: Could not read server count"))?;
 
     if server_count == 0 {
-        println!("Server count is 0, returning empty list");
+        info!("{url}: Server count is 0, returning empty list");
         return Ok(Vec::new());
     }
-
-    println!("Expecting {server_count} servers");
 
     let mut servers = Vec::new();
 
     for idx in 0..server_count {
-        servers.push(parse_server(&mut input)?);
+        servers.push(parse_server(url, &mut input)?);
     }
 
     Ok(servers)
 }
 
-fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
+fn parse_server(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
     // Yes, BigEndian, but when converted to an IP address
     // it comes out right.
     let ip_addr = input
         .read_u32::<BigEndian>()
-        .with_context(|| "Could not read IP address")?;
+        .with_context(|| format!("{url:} Could not read IP address"))?;
 
     let port = input
         .read_u16::<LittleEndian>()
-        .with_context(|| "Could not read port number")?;
+        .with_context(|| format!("{url}: Could not read port number"))?;
 
     let tag_count = input
         .read_u32::<LittleEndian>()
-        .with_context(|| "Could not read tag count")?;
+        .with_context(|| format!("{url}: Could not read tag count"))?;
 
-    println!("Expecting {} tags", tag_count);
+    //println!("Expecting {} tags", tag_count);
 
     let mut server = ParsedServer {
         ip_addr: Ipv4Addr::from(ip_addr).into(),
@@ -86,10 +94,19 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
         hard_file_limit: None,
         udp_flags: None,
         version: None,
+        last_ping_time: None,
+        udp_key: None,
+        udp_key_ip_addr: None,
+        tcp_obfuscation_port: None,
+        udp_obfuscation_port: None,
+        dns: None,
+        preference: None,
+        aux_ports_list: None,
+        fail_count: None,
     };
 
     for idx in 0..tag_count {
-        let tag = parse_tag(input)?;
+        let tag = parse_tag(url, input)?;
 
         // Parsed a tag we don't support?
         if tag.is_none() {
@@ -103,20 +120,24 @@ fn parse_server(input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
             ParsedTag::ServerName(s) => server.name = Some(s),
             ParsedTag::Description(d) => server.description = Some(d),
             ParsedTag::Ping(n) => server.ping = Some(n),
-            ParsedTag::Fail(_) => todo!(),
-            ParsedTag::Preference(_) => todo!(),
-            ParsedTag::Dns(_) => todo!(),
             ParsedTag::MaxUsers(n) => server.max_users = Some(n),
             ParsedTag::SoftFiles(n) => server.soft_file_limit = Some(n),
             ParsedTag::HardFiles(n) => server.hard_file_limit = Some(n),
-            ParsedTag::LastPingTime(_) => todo!(),
             ParsedTag::Version(s) => server.version = Some(s),
-            ParsedTag::UDPFlags(n) => server.udp_flags = Some(n),
-            ParsedTag::AuxPortsList(_) => todo!(),
             ParsedTag::FileCount(n) => server.file_count = Some(n),
             ParsedTag::UserCount(n) => server.user_count = Some(n),
             ParsedTag::LowIdUserCount(n) => server.low_id_user_count = Some(n),
             ParsedTag::Country(s) => server.country = Some(s),
+            ParsedTag::UDPFlags(n) => server.udp_flags = Some(n),
+            ParsedTag::LastPingTime(n) => server.last_ping_time = Some(n),
+            ParsedTag::UdpKey(n) => server.udp_key = Some(n),
+            ParsedTag::UdpKeyIpAddr(n) => server.udp_key_ip_addr = Some(Ipv4Addr::from(n).into()),
+            ParsedTag::TcpObfuscationPort(n) => server.tcp_obfuscation_port = Some(n),
+            ParsedTag::UdpObfuscationPort(n) => server.udp_obfuscation_port = Some(n),
+            ParsedTag::Preference(n) => server.preference = Some(n),
+            ParsedTag::Dns(s) => server.dns = Some(s),
+            ParsedTag::AuxPortsList(ports) => server.aux_ports_list = Some(ports),
+            ParsedTag::FailCount(n) => server.fail_count = Some(n),
         }
     }
 
@@ -128,7 +149,7 @@ enum ParsedTag {
     ServerName(String),
     Description(String),
     Ping(u32),
-    Fail(u32),
+    FailCount(u32),
     Preference(u32),
     Dns(String),
     MaxUsers(u32),
@@ -142,6 +163,10 @@ enum ParsedTag {
     UserCount(u32),
     LowIdUserCount(u32),
     Country(String),
+    UdpKey(u32),
+    UdpKeyIpAddr(u32),
+    TcpObfuscationPort(u16),
+    UdpObfuscationPort(u16),
 }
 
 fn read_string(input: &mut Cursor<&[u8]>, length: usize) -> Result<String> {
@@ -155,22 +180,33 @@ fn read_string(input: &mut Cursor<&[u8]>, length: usize) -> Result<String> {
 // with any tags that might suddenly appear out in the wild reaches
 // of t'internet (and means that we don't need to support everything
 // that *already* exists.)
-fn parse_tag(input: &mut Cursor<&[u8]>) -> Result<Option<ParsedTag>> {
-    let mut tag_type = input.read_u8().with_context(|| "Could not read tag_type")?;
+fn parse_tag(url: &str, input: &mut Cursor<&[u8]>) -> Result<Option<ParsedTag>> {
+    let mut tag_type = input
+        .read_u8()
+        .with_context(|| format!("{url}: Could not read tag_type"))?;
 
     let mut numeric_tag_name: Option<u8> = None;
     let mut textual_tag_name: Option<String> = None;
 
+    // Code from aMule, not documented why needed.
     if (tag_type & 0x80) != 0 {
         tag_type &= 0x7F;
-        numeric_tag_name = Some(input.read_u8().with_context(|| "Could not read XXX")?);
+        numeric_tag_name = Some(
+            input
+                .read_u8()
+                .with_context(|| format!("{url}: Could not read WHATEVER THIS IS"))?,
+        );
     } else {
         let tag_name_length = input
             .read_u16::<LittleEndian>()
-            .with_context(|| "Could not read tag_name_length")?;
+            .with_context(|| format!("{url}: Could not read tag_name_length"))?;
 
         if tag_name_length == 1 {
-            numeric_tag_name = Some(input.read_u8().with_context(|| "Could not read XXX")?);
+            numeric_tag_name = Some(
+                input
+                    .read_u8()
+                    .with_context(|| format!("{url}: Could not read numeric_tag_name"))?,
+            );
         } else {
             textual_tag_name = Some(read_string(input, tag_name_length as usize)?);
         }
@@ -192,94 +228,123 @@ fn parse_tag(input: &mut Cursor<&[u8]>) -> Result<Option<ParsedTag>> {
         numeric_tag_value = Some(input.read_u32::<LittleEndian>()?);
         //println!("Got numeric_tag_value of {:?}", numeric_tag_value);
     } else {
-        println!("Invalid tag type of {}", tag_type);
-        bail!("Invalid tag type of {}", tag_type);
+        error!("{url}: Invalid tag type of {tag_type}");
+        bail!("{url}: Invalid tag type of {tag_type}");
     }
 
     // The tag "name" is a number stored in numeric_tag_name XOR a string stored in
     // textual_tag_name.
     let tag = match numeric_tag_name {
-        Some(0x01) => {
-            ParsedTag::ServerName(string_tag_value.expect("Should have a string_tag_value"))
-        }
-        Some(0x0B) => {
-            ParsedTag::Description(string_tag_value.expect("Should have a string_tag_value"))
-        }
-        Some(0x0C) => ParsedTag::Ping(numeric_tag_value.expect("Should have a numeric_tag_value")),
-        Some(0x0D) => {
-            //ParsedTag::Fail(numeric_tag_value.expect("Should have a numeric_tag_value"))
-            todo!()
-        }
-        Some(0x0E) => {
-            // aka priority
-            //ParsedTag::Preference(numeric_tag_value.expect("Should have a
-            // numeric_tag_value"))
-            todo!()
-        }
-        Some(0x85) => {
-            //ParsedTag::DNS(numeric_tag_value.expect("Should have a
-            // numeric_tag_value"))
-            todo!()
-        }
-        Some(0x87) => {
-            ParsedTag::MaxUsers(numeric_tag_value.expect("Should have a numeric_tag_value"))
-        }
-        Some(0x88) => {
-            ParsedTag::SoftFiles(numeric_tag_value.expect("Should have a numeric_tag_value"))
-        }
-        Some(0x89) => {
-            ParsedTag::HardFiles(numeric_tag_value.expect("Should have a numeric_tag_value"))
-        }
-        Some(0x90) => {
-            //ParsedTag::LastPingTime(numeric_tag_value.expect("Should have a
-            // numeric_tag_value"))
-            todo!()
-        }
+        Some(0x01) => ParsedTag::ServerName(
+            string_tag_value.expect(&format!("{url}: ServerName should have a string_tag_value")),
+        ),
+        Some(0x0B) => ParsedTag::Description(string_tag_value.expect(&format!(
+            "{url}: Server Description should have a string_tag_value"
+        ))),
+        Some(0x0C) => ParsedTag::Ping(
+            numeric_tag_value.expect(&format!("{url}: Ping should have a numeric_tag_value")),
+        ),
+        Some(0x0D) => ParsedTag::FailCount(
+            numeric_tag_value.expect(&format!("{url}: FailCount should have a numeric_tag_value")),
+        ),
+        Some(0x0E) => ParsedTag::Preference(numeric_tag_value.expect(&format!(
+            "{url}: Preference (aka Priority) should have a numeric_tag_value"
+        ))),
+        Some(0x85) => ParsedTag::Dns(
+            string_tag_value.expect(&format!("{url}: Dns should have a string_tag_value",)),
+        ),
+        Some(0x87) => ParsedTag::MaxUsers(
+            numeric_tag_value.expect(&format!("{url}: MaxUsers should have a numeric_tag_value")),
+        ),
+        Some(0x88) => ParsedTag::SoftFiles(
+            numeric_tag_value.expect(&format!("{url}: SoftFiles should have a numeric_tag_value")),
+        ),
+        Some(0x89) => ParsedTag::HardFiles(
+            numeric_tag_value.expect(&format!("{url}: HardFiles should have a numeric_tag_value")),
+        ),
+        Some(0x90) => ParsedTag::LastPingTime(numeric_tag_value.expect(&format!(
+            "{url}: LastPingTime should have a numeric_tag_value"
+        ))),
         Some(0x91) => {
             if string_tag_value.is_none() {
-                let numeric_tag_value = numeric_tag_value.expect("Should have a numeric_tag_value");
+                let numeric_tag_value = numeric_tag_value
+                    .expect(&format!("{url}: Version should have a numeric_tag_value"));
                 let major = numeric_tag_value >> 16;
                 let minor = numeric_tag_value & 0xFFFF;
                 ParsedTag::Version(format!("{}.{}", major, minor))
             } else {
-                ParsedTag::Version(string_tag_value.expect("Should have a string_tag_value"))
+                ParsedTag::Version(
+                    string_tag_value
+                        .expect(&format!("{url}: Version should have a string_tag_value")),
+                )
             }
         }
-        Some(0x92) => {
-            // TODO: Unpack.
-            ParsedTag::UDPFlags(numeric_tag_value.expect("Should have a numeric_tag_value"))
-        }
+        Some(0x92) => ParsedTag::UDPFlags(
+            numeric_tag_value.expect(&format!("{url}: UDPFlags should have a numeric_tag_value")),
+        ),
         Some(0x93) => {
-            //ParsedTag::AuxPortsList(numeric_tag_value.expect("Should have a
-            // numeric_tag_value"))
-            todo!()
+            let ports = string_tag_value
+                .expect(&format!("{url}: AuxPortsList should have a string value"))
+                .split(',')
+                .map(|s| s.parse::<u16>())
+                .flatten() // Ignore any bad ports.
+                .collect::<Vec<_>>();
+
+            ParsedTag::AuxPortsList(ports)
         }
-        Some(0x94) => {
-            ParsedTag::LowIdUserCount(numeric_tag_value.expect("Should have a numeric_tag_value"))
-        }
+        Some(0x94) => ParsedTag::LowIdUserCount(numeric_tag_value.expect(&format!(
+            "{url}: LowIdUserCount should have a numeric_tag_value"
+        ))),
+        Some(0x95) => ParsedTag::UdpKey(
+            numeric_tag_value.expect(&format!("{url}: UdpKey should have a numeric_tag_value")),
+        ),
+        // TODO: This would have been read in LE, probably need to convert to BE!
+        Some(0x96) => ParsedTag::UdpKeyIpAddr(numeric_tag_value.expect(&format!(
+            "{url}: UdpKeyIpAddr should have a numeric_tag_value"
+        ))),
+        Some(0x97) => ParsedTag::TcpObfuscationPort(
+            numeric_tag_value
+                .expect(&format!(
+                    "{url}: TcpObfuscationPort should have a numeric_tag_value"
+                ))
+                .try_into()?,
+        ),
+        Some(0x98) => ParsedTag::UdpObfuscationPort(
+            numeric_tag_value
+                .expect(&format!(
+                    "{url}: UdpObfuscationPort should have a numeric_tag_value"
+                ))
+                .try_into()?,
+        ),
         None => match textual_tag_name.as_deref() {
-            Some("users") => {
-                ParsedTag::UserCount(numeric_tag_value.expect("Should have a numeric_tag_value"))
-            }
-            Some("lowusers") => ParsedTag::LowIdUserCount(
-                numeric_tag_value.expect("Should have a numeric_tag_value"),
-            ),
-            Some("files") => {
-                ParsedTag::FileCount(numeric_tag_value.expect("Should have a numeric_tag_value"))
-            }
-            Some("maxusers") => {
-                ParsedTag::MaxUsers(numeric_tag_value.expect("Should have a numeric_tag_value"))
-            }
-            Some("country") => {
-                ParsedTag::Country(string_tag_value.expect("Should have a numeric_tag_value"))
-            }
+            Some("users") => ParsedTag::UserCount(numeric_tag_value.expect(&format!(
+                "{url}: UserCount ('users') should have a numeric_tag_value"
+            ))),
+            Some("lowusers") => ParsedTag::LowIdUserCount(numeric_tag_value.expect(&format!(
+                "{url}: LowIdUserCount ('lowusers') Should have a numeric_tag_value"
+            ))),
+            Some("files") => ParsedTag::FileCount(numeric_tag_value.expect(&format!(
+                "{url}: FileCount ('files') Should have a numeric_tag_value"
+            ))),
+            Some("maxusers") => ParsedTag::MaxUsers(numeric_tag_value.expect(&format!(
+                "{url}: MaxUsers ('maxusers') should have a numeric_tag_value"
+            ))),
+            Some("country") => ParsedTag::Country(string_tag_value.expect(&format!(
+                "{url}: Country ('country') should have a string_tag_value"
+            ))),
             x @ _ => {
-                println!(" >>>> Currently unhandled textual_tag_name: {:?}", x);
+                warn!(
+                    " >>>> {url}: Currently unhandled textual_tag_name: {:?} - IGNORING",
+                    x
+                );
                 ParsedTag::NoTag
             }
         },
         x @ _ => {
-            println!(" >>>> Currently unhandled numeric_tag_name: {:?}", x);
+            warn!(
+                " >>>> {url}: Currently unhandled numeric_tag_name: {:?} - IGNORING",
+                x
+            );
             ParsedTag::NoTag
         }
     };
@@ -297,7 +362,7 @@ mod test {
         // This is a minimal, uncompressed file with only server name and description
         // tags.
         let input = include_bytes!("www.gruk.org.server.met");
-        let servers = parse_servers(input).unwrap();
+        let servers = parse_servers("test.com", input).unwrap();
         assert_eq!(servers.len(), 6);
 
         let s = &servers[0];
@@ -347,7 +412,7 @@ mod test {
     pub fn test_parse_of_valid_server_data_maximal() {
         // This is a maximal, uncompressed file with most tags set.
         let input = include_bytes!("shortypower.org.server.met");
-        let servers = parse_servers(input).unwrap();
+        let servers = parse_servers("test.com", input).unwrap();
         assert_eq!(servers.len(), 10);
 
         let s = &servers[0];

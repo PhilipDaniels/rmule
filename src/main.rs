@@ -90,7 +90,11 @@ async fn main() -> Result<()> {
 
     // Without this, the process will exit before the Configuration Manager
     // background task has had chance to run and load all data.
+    info!("RMULE IS WAITING...");
     std::thread::sleep(Duration::from_secs(5));
+
+    info!("CLOSING RMULE");
+
     Ok(())
 }
 

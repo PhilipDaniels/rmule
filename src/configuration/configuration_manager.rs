@@ -139,7 +139,7 @@ impl ConfigurationManager {
                 // should not stop rMule from running because we got some bad data
                 // from the internet.
                 match Self::download_server_met(&url).await {
-                    Ok(resp) => parsers::parse_servers(&resp).unwrap_or_else(|_| Vec::new()),
+                    Ok(resp) => parsers::parse_servers(&url, &resp).unwrap_or_else(|_| Vec::new()),
                     Err(_) => Vec::new(),
                 }
             }));
