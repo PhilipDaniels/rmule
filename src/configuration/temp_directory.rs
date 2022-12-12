@@ -94,7 +94,7 @@ impl TempDirectoryList {
         let conn = db.conn();
         let mut stmt = conn.prepare(
             r#"INSERT INTO temp_directory(directory) VALUES (?1)
-                RETURNING id"#,
+               RETURNING id"#,
         )?;
 
         let path: DatabasePathBuf = path.into();

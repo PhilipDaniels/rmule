@@ -1,7 +1,7 @@
 use crate::{file, times};
 use anyhow::{bail, Result};
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput};
-use rusqlite::{Connection, Params, ToSql};
+use rusqlite::{Connection, Params, Row, RowIndex, ToSql};
 use std::borrow::Cow;
 use std::net::IpAddr;
 use std::ops::Deref;
@@ -41,6 +41,34 @@ impl ConnectionExtensions for Connection {
         )?;
         Ok(count == 1)
     }
+}
+
+pub trait RowExtensions {
+    fn get_ip_addr<I: RowIndex>(&self, idx: I) -> Result<Option<IpAddr>>;
+    fn get_path_buf<I: RowIndex>(&self, idx: I) -> Result<Option<PathBuf>>;
+}
+
+impl<'a> RowExtensions for Row<'a> {
+    fn get_ip_addr<I: RowIndex>(&self, idx: I) -> Result<Option<IpAddr>> {
+        let s = self.get_ref(idx)?.as_str_or_null()?;
+        match s {
+            Some(s) => Ok(Some(IpAddr::from_str(s)?)),
+            None => Ok(None),
+        }
+    }
+
+    fn get_path_buf<I: RowIndex>(&self, idx: I) -> Result<Option<PathBuf>> {
+        let s = self.get_ref(idx)?.as_str_or_null()?;
+        match s {
+            Some(s) => Ok(Some(s.into())),
+            None => Ok(None),
+        }
+    }
+}
+
+trait ToSql2 {
+    /// Converts Rust value to SQLite value
+    fn to_sql(&self) -> Result<ToSqlOutput<'_>>;
 }
 
 /// A type that represents timestamps as we hold them in SQLite.

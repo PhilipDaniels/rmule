@@ -24,6 +24,7 @@ CREATE TABLE server
     version TEXT,
     last_ping_time TIMESTAMP,
     udp_key TEXT,
+    udp_key_ip_addr TEXT,
     tcp_obfuscation_port INTEGER,
     udp_obfuscation_port INTEGER,
     dns_name TEXT,
