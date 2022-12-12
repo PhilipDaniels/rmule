@@ -1,16 +1,80 @@
-use super::sqlite_extensions::{DatabaseTime, RowExtensions};
-use super::ConfigurationDb;
+use super::{ConfigurationDb, IpAddr};
 use crate::parsers::ParsedServer;
+use crate::utils::StringExtensions;
 use anyhow::{bail, Result};
 use bitflags::bitflags;
-use rusqlite::{params, Row, Statement, ToSql};
-use std::net::{IpAddr, Ipv4Addr};
-use std::ops::Deref;
+use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput};
+use rusqlite::{Row, Statement, ToSql};
+use time::OffsetDateTime;
 use tracing::info;
 
 #[derive(Debug)]
 pub struct ServerList {
     servers: Vec<Server>,
+}
+
+/// Represents a server on the ed2k network. Only the IP Address and port
+/// are mandatory to establish a connection to a server, however most of
+/// the other fields are usually provided in a server.met file.
+/// See http://wiki.amule.org/t/index.php?title=Server.met_file
+#[derive(Debug, Default)]
+pub struct Server {
+    /// The Id of the server, from the database table.
+    id: u32,
+    /// The download URL or "manual" from where this server originated.
+    source: String,
+    /// A flag to indicate whether the server is active. This allows us to
+    /// disable servers without removing them from the list and losing them.
+    active: bool,
+    /// The IP Address of the server.
+    ip_addr: IpAddr,
+    /// The port through which rMule will connect to the server.
+    /// See also aux_ports_list.
+    port: u16,
+    /// The friendly name of the server, e.g. "eMule Sunrise".
+    name: Option<String>,
+    /// Short description of the server.
+    description: Option<String>,
+    /// The number of users currently registered on the server.
+    user_count: Option<u32>,
+    /// The number of 'Low Id' users currently registered on the server.
+    /// See http://wiki.amule.org/wiki/FAQ_eD2k-Kademlia#What_is_LowID_and_HighID.3F
+    low_id_user_count: Option<u32>,
+    /// Maximum number of users the server allows to simultaneously connect
+    max_user_count: Option<u32>,
+    /// Time (in ms) it takes to communicate with the server.
+    ping_ms: Option<u32>,
+    /// The number of files registered on the server.
+    file_count: Option<u32>,
+    /// Soft files is the minimum number of files you must share to not be
+    /// penalized.
+    soft_file_limit: Option<u32>,
+    /// Hard files is the maximum number of files you must share to not be
+    /// penalized.
+    hard_file_limit: Option<u32>,
+    /// What actions are supported via UDP.
+    udp_flags: Option<ServerUdpActions>,
+    /// Version and name of the software the server is running to support the
+    /// ed2k network.
+    version: Option<String>,
+    /// The last time the server was pinged.
+    last_ping_time: Option<OffsetDateTime>,
+    /// UNKNOWN
+    udp_key: Option<u32>,
+    /// UNKNOWN
+    udp_key_ip_addr: Option<IpAddr>,
+    /// UNKNOWN
+    tcp_obfuscation_port: Option<u16>,
+    /// UNKNOWN
+    udp_obfuscation_port: Option<u16>,
+    /// The DNS name of the server.
+    dns_name: Option<String>,
+    /// Server priority.
+    priority: Option<ServerPriority>,
+    /// List of auxiliary ports which can be tried if the standard one fails.
+    aux_ports_list: Vec<u16>,
+    /// How many times connecting to the server failed (reset to 0 on success?)
+    fail_count: Option<u32>,
 }
 
 impl ServerList {
@@ -34,7 +98,7 @@ impl ServerList {
     /// server list. Servers are matched on ip_appr.
     pub fn merge_parsed_servers(&mut self, parsed_servers: &[ParsedServer]) {
         for ps in parsed_servers {
-            if let Some(idx) = self.servers.iter().position(|s| s.ip_addr == ps.ip_addr) {
+            if let Some(idx) = self.servers.iter().position(|s| *s.ip_addr == ps.ip_addr) {
                 let s = self.servers.get_mut(idx).unwrap();
                 s.update_from(ps);
             } else {
@@ -114,7 +178,7 @@ impl ServerList {
 
     fn insert_server(stmt: &mut Statement, server: &Server) -> Result<u32> {
         //let row = ServerRow::new(server);
-        let params = Self::get_params2(server);
+        //let params = Self::get_params2(server);
         let mut rows = stmt.query([])?;
 
         match rows.next()? {
@@ -126,6 +190,7 @@ impl ServerList {
         }
     }
 
+    /*
     fn get_params2(server: &Server) -> Vec<Box<&dyn ToSql>> {
         let mut v: Vec<Box<&dyn ToSql>> = Vec::new();
 
@@ -137,7 +202,7 @@ impl ServerList {
     fn get_params<'a>(row: &'a ServerRow) -> &'a [&'a dyn ToSql] {
         params![row.xip_addr]
 
-        /*
+
         let udp_flags = match server.udp_flags {
             Some(p) => Some(p.bits),
             None => None,
@@ -184,8 +249,9 @@ impl ServerList {
             aux_ports_list,
             server.fail_count,
         ]
-        */
+
     }
+    */
 }
 
 impl IntoIterator for ServerList {
@@ -215,140 +281,6 @@ impl<'a> IntoIterator for &'a mut ServerList {
     }
 }
 
-/// Represents a server on the ed2k network. Only the IP Address and port
-/// are mandatory to establish a connection to a server, however most of
-/// the other fields are usually provided in a server.met file.
-/// See http://wiki.amule.org/t/index.php?title=Server.met_file
-#[derive(Debug)]
-pub struct Server {
-    /// The Id of the server, from the database table.
-    id: u32,
-    /// The download URL or "manual" from where this server originated.
-    source: String,
-    /// A flag to indicate whether the server is active. This allows us to
-    /// disable servers without removing them from the list and losing them.
-    active: bool,
-    /// The IP Address of the server.
-    ip_addr: IpAddr,
-    /// The port through which rMule will connect to the server.
-    /// See also aux_ports_list.
-    port: u16,
-    /// The friendly name of the server, e.g. "eMule Sunrise".
-    name: Option<String>,
-    /// Short description of the server.
-    description: Option<String>,
-    /// The number of users currently registered on the server.
-    user_count: Option<u32>,
-    /// The number of 'Low Id' users currently registered on the server.
-    /// See http://wiki.amule.org/wiki/FAQ_eD2k-Kademlia#What_is_LowID_and_HighID.3F
-    low_id_user_count: Option<u32>,
-    /// Maximum number of users the server allows to simultaneously connect
-    max_user_count: Option<u32>,
-    /// Time (in ms) it takes to communicate with the server.
-    ping_ms: Option<u32>,
-    /// The number of files registered on the server.
-    file_count: Option<u32>,
-    /// Soft files is the minimum number of files you must share to not be
-    /// penalized.
-    soft_file_limit: Option<u32>,
-    /// Hard files is the maximum number of files you must share to not be
-    /// penalized.
-    hard_file_limit: Option<u32>,
-    /// What actions are supported via UDP.
-    udp_flags: Option<ServerUdpActions>,
-    /// Version and name of the software the server is running to support the
-    /// ed2k network.
-    version: Option<String>,
-    /// The last time the server was pinged.
-    last_ping_time: Option<DatabaseTime>,
-    /// UNKNOWN
-    udp_key: Option<u32>,
-    /// UNKNOWN
-    udp_key_ip_addr: Option<IpAddr>,
-    /// UNKNOWN
-    tcp_obfuscation_port: Option<u16>,
-    /// UNKNOWN
-    udp_obfuscation_port: Option<u16>,
-    /// The DNS name of the server.
-    dns_name: Option<String>,
-    /// Server priority.
-    priority: Option<ServerPriority>,
-    /// List of auxiliary ports which can be tried if the standard one fails.
-    aux_ports_list: Vec<u16>,
-    /// How many times connecting to the server failed (reset to 0 on success?)
-    fail_count: Option<u32>,
-}
-
-/// Internal struct to help with saving to the database.
-struct ServerRow<'a> {
-    server: &'a Server,
-    xip_addr: String,
-    udp_flags: Option<u32>,
-    priority: Option<u32>,
-    udp_key_ip_addr: Option<String>,
-}
-
-impl<'a> ServerRow<'a> {
-    fn new(server: &'a Server) -> Self {
-        ServerRow {
-            server,
-            xip_addr: server.ip_addr.to_string(),
-            udp_flags: match server.udp_flags {
-                Some(p) => Some(p.bits),
-                None => None,
-            },
-            priority: match server.priority {
-                Some(p) => Some(p as u32),
-                None => None,
-            },
-            udp_key_ip_addr: match server.udp_key_ip_addr {
-                Some(ip) => Some(ip.to_string()),
-                None => None,
-            },
-        }
-    }
-}
-
-impl<'a> Deref for ServerRow<'a> {
-    type Target = Server;
-
-    fn deref(&self) -> &Self::Target {
-        &self.server
-    }
-}
-
-impl Default for Server {
-    fn default() -> Self {
-        Self {
-            id: Default::default(),
-            source: Default::default(),
-            active: Default::default(),
-            ip_addr: IpAddr::V4(Ipv4Addr::UNSPECIFIED).into(),
-            port: Default::default(),
-            name: Default::default(),
-            description: Default::default(),
-            user_count: Default::default(),
-            low_id_user_count: Default::default(),
-            max_user_count: Default::default(),
-            ping_ms: Default::default(),
-            file_count: Default::default(),
-            soft_file_limit: Default::default(),
-            hard_file_limit: Default::default(),
-            udp_flags: Default::default(),
-            version: Default::default(),
-            last_ping_time: Default::default(),
-            udp_key: Default::default(),
-            udp_key_ip_addr: Default::default(),
-            tcp_obfuscation_port: Default::default(),
-            udp_obfuscation_port: Default::default(),
-            dns_name: Default::default(),
-            priority: Default::default(),
-            aux_ports_list: Default::default(),
-            fail_count: Default::default(),
-        }
-    }
-}
-
 impl From<&ParsedServer> for Server {
     fn from(value: &ParsedServer) -> Self {
         let mut s = Self::default();
@@ -356,7 +288,7 @@ impl From<&ParsedServer> for Server {
         s.id = 0;
         s.source = "???".to_owned();
         s.active = true;
-        s.ip_addr = value.ip_addr;
+        s.ip_addr = value.ip_addr.into();
         s
     }
 }
@@ -377,7 +309,7 @@ impl Server {
         self.version = ps.version.clone();
         //self.last_ping_time = ps.last_ping_time;
         self.udp_key = ps.udp_key;
-        self.udp_key_ip_addr = ps.udp_key_ip_addr;
+        self.udp_key_ip_addr = ps.udp_key_ip_addr.map(|addr| addr.into());
         self.tcp_obfuscation_port = ps.tcp_obfuscation_port;
         self.udp_obfuscation_port = ps.udp_obfuscation_port;
         self.dns_name = ps.dns.clone();
@@ -394,26 +326,16 @@ impl TryFrom<&Row<'_>> for Server {
     /// This must return a rusqlite::Error in order to be usable
     /// from within QueryMap.
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let priority = row.get::<_, u32>("priority")?;
-        let priority = ServerPriority::try_from(priority)?;
-
-        let udp_flags = row.get::<_, u32>("udp_flags")?;
-        let udp_flags = ServerUdpActions::try_from(udp_flags)?;
-
-        let aux_ports: Vec<u16>;
-        if let Some(apl) = row.get::<_, Option<String>>("aux_ports_list")? {
-            aux_ports = apl.split(',').map(|s| s.parse()).flatten().collect();
-        } else {
-            aux_ports = Vec::new();
-        }
+        let ports = match row.get::<_, Option<String>>("aux_ports_list")? {
+            Some(s) => s.split_comma_to_vec()?,
+            None => Vec::new(),
+        };
 
         Ok(Self {
             id: row.get("ïd")?,
             source: row.get("source")?,
             active: row.get("active")?,
-            ip_addr: row
-                .get_ip_addr("ip_addr")?
-                .expect("server.ip_addr is a mandatory field"),
+            ip_addr: row.get("ip_addr")?,
             port: row.get("port")?,
             name: row.get("name")?,
             description: row.get("description")?,
@@ -424,16 +346,16 @@ impl TryFrom<&Row<'_>> for Server {
             file_count: row.get("file_count")?,
             soft_file_limit: row.get("soft_file_limit")?,
             hard_file_limit: row.get("hard_file_limit")?,
-            udp_flags: Some(udp_flags),
+            udp_flags: Some(row.get("udp_flags")?),
             version: row.get("version")?,
             last_ping_time: row.get("last_ping_time")?,
             udp_key: row.get("udp_key")?,
-            udp_key_ip_addr: row.get_ip_addr("udp_key_ip_addr")?,
+            udp_key_ip_addr: row.get("udp_key_ip_addr")?,
             tcp_obfuscation_port: row.get("tcp_obfuscation_port")?,
             udp_obfuscation_port: row.get("udp_obfuscation_port")?,
             dns_name: row.get("dns_name")?,
-            priority: Some(priority),
-            aux_ports_list: aux_ports,
+            priority: Some(row.get("priority")?),
+            aux_ports_list: ports,
             fail_count: row.get("fail_count")?,
         })
     }
@@ -448,15 +370,47 @@ pub enum ServerPriority {
 }
 
 impl TryFrom<u32> for ServerPriority {
-    type Error = rusqlite::Error;
+    type Error = anyhow::Error;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Self::Low),
             1 => Ok(Self::Normal),
             2 => Ok(Self::High),
-            _ => Err(rusqlite::Error::IntegralValueOutOfRange(0, value as i64)),
+            _ => bail!("The value {value} is outside the expected range (0,1 or 2"),
         }
+    }
+}
+
+impl TryFrom<i64> for ServerPriority {
+    type Error = anyhow::Error;
+
+    fn try_from(value: i64) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Low),
+            1 => Ok(Self::Normal),
+            2 => Ok(Self::High),
+            _ => bail!("The value {value} is outside the expected range (0,1 or 2"),
+        }
+    }
+}
+
+impl ToSql for ServerPriority {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        let n = *self as u32;
+        Ok(ToSqlOutput::from(n))
+    }
+}
+
+impl FromSql for ServerPriority {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        value.as_i64().and_then(|n| {
+            let sp = match ServerPriority::try_from(n) {
+                Ok(sp) => sp,
+                Err(e) => return Err(FromSqlError::OutOfRange(n)),
+            };
+            FromSqlResult::Ok(sp)
+        })
     }
 }
 
@@ -487,5 +441,24 @@ impl TryFrom<u32> for ServerUdpActions {
                 value
             )
         }
+    }
+}
+
+impl ToSql for ServerUdpActions {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        Ok(ToSqlOutput::from(self.bits))
+    }
+}
+
+impl FromSql for ServerUdpActions {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        value.as_i64().and_then(|n| {
+            // Slightly nasty cast, but in practice safe.
+            let sp = match ServerUdpActions::try_from(n as u32) {
+                Ok(sp) => sp,
+                Err(e) => return Err(FromSqlError::OutOfRange(n)),
+            };
+            FromSqlResult::Ok(sp)
+        })
     }
 }

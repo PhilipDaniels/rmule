@@ -1,7 +1,7 @@
-use super::sqlite_extensions::{DatabasePathBuf, DatabaseTime};
-use super::ConfigurationDb;
+use super::{ConfigurationDb, PathBuf};
 use anyhow::Result;
 use rusqlite::{params, Row};
+use time::OffsetDateTime;
 use tracing::info;
 
 #[derive(Debug)]
@@ -9,7 +9,8 @@ pub struct Settings {
     pub nick_name: String,
     /// Default downloads directory to be used if not set on the TempDirectory
     /// or on the download itself.
-    pub default_downloads_directory: DatabasePathBuf,
+    pub default_downloads_directory: PathBuf,
+    /// Whether to automatically update the list of servers when rMule starts.
     pub auto_update_server_list: bool,
 }
 
@@ -85,7 +86,7 @@ impl Settings {
                 self.nick_name,
                 self.default_downloads_directory,
                 self.auto_update_server_list,
-                DatabaseTime::now()
+                OffsetDateTime::now_local()?,
             ],
         )?;
 

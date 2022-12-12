@@ -15,6 +15,7 @@ mod configuration;
 mod file;
 mod parsers;
 mod times;
+mod utils;
 
 #[tokio::main]
 async fn main() -> Result<()> {

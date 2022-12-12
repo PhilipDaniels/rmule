@@ -1,5 +1,4 @@
-use super::sqlite_extensions::DatabasePathBuf;
-use super::ConfigurationDb;
+use super::{ConfigurationDb, PathBuf};
 use anyhow::{bail, Result};
 use rusqlite::Row;
 use std::path::Path;
@@ -18,7 +17,7 @@ pub struct TempDirectoryList {
 #[derive(Debug)]
 pub struct TempDirectory {
     id: u32,
-    directory: DatabasePathBuf,
+    directory: PathBuf,
 }
 
 impl TryFrom<&Row<'_>> for TempDirectory {
@@ -97,7 +96,7 @@ impl TempDirectoryList {
                RETURNING id"#,
         )?;
 
-        let path: DatabasePathBuf = path.into();
+        let path: PathBuf = path.into();
         let mut rows = stmt.query([&path])?;
         match rows.next()? {
             Some(row) => {
