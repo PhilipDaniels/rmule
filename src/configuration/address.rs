@@ -26,7 +26,7 @@ impl TryFrom<&Row<'_>> for Address {
     /// Build an Address value from a Rusqlite Row.
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: row.get("ïd")?,
+            id: row.get("id")?,
             url: row.get("url")?,
             description: row.get("description")?,
             active: row.get("active")?,

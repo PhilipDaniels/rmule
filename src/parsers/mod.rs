@@ -3,6 +3,7 @@
 
 use anyhow::{bail, Context, Result};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+use core::panic;
 use std::io::{Cursor, Read};
 use std::net::{IpAddr, Ipv4Addr};
 use tracing::{error, info, warn};
@@ -55,7 +56,7 @@ pub fn parse_servers(url: &str, input: &[u8]) -> Result<Vec<ParsedServer>> {
 
     let mut servers = Vec::new();
 
-    for idx in 0..server_count {
+    for _ in 0..server_count {
         servers.push(parse_server(url, &mut input)?);
     }
 
@@ -105,7 +106,7 @@ fn parse_server(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
         fail_count: None,
     };
 
-    for idx in 0..tag_count {
+    for _ in 0..tag_count {
         let tag = parse_tag(url, input)?;
 
         match tag {
@@ -223,55 +224,66 @@ fn parse_tag(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
     // textual_tag_name.
     let tag = match numeric_tag_name {
         Some(0x01) => ParsedTag::ServerName(
-            string_tag_value.expect(&format!("{url}: ServerName should have a string_tag_value")),
+            string_tag_value
+                .unwrap_or_else(|| panic!("{url}: ServerName should have a string_tag_value")),
         ),
-        Some(0x0B) => ParsedTag::Description(string_tag_value.expect(&format!(
-            "{url}: Server Description should have a string_tag_value"
-        ))),
+        Some(0x0B) => {
+            ParsedTag::Description(string_tag_value.unwrap_or_else(|| {
+                panic!("{url}: Server Description should have a string_tag_value")
+            }))
+        }
         Some(0x0C) => ParsedTag::Ping(
-            numeric_tag_value.expect(&format!("{url}: Ping should have a numeric_tag_value")),
+            numeric_tag_value
+                .unwrap_or_else(|| panic!("{url}: Ping should have a numeric_tag_value")),
         ),
         Some(0x0D) => ParsedTag::FailCount(
-            numeric_tag_value.expect(&format!("{url}: FailCount should have a numeric_tag_value")),
+            numeric_tag_value
+                .unwrap_or_else(|| panic!("{url}: FailCount should have a numeric_tag_value")),
         ),
-        Some(0x0E) => ParsedTag::Preference(numeric_tag_value.expect(&format!(
-            "{url}: Preference (aka Priority) should have a numeric_tag_value"
-        ))),
+        Some(0x0E) => ParsedTag::Preference(numeric_tag_value.unwrap_or_else(|| {
+            panic!("{url}: Preference (aka Priority) should have a numeric_tag_value")
+        })),
         Some(0x85) => ParsedTag::Dns(
-            string_tag_value.expect(&format!("{url}: Dns should have a string_tag_value",)),
+            string_tag_value
+                .unwrap_or_else(|| panic!("{url}: Dns should have a string_tag_value",)),
         ),
         Some(0x87) => ParsedTag::MaxUsers(
-            numeric_tag_value.expect(&format!("{url}: MaxUsers should have a numeric_tag_value")),
+            numeric_tag_value
+                .unwrap_or_else(|| panic!("{url}: MaxUsers should have a numeric_tag_value")),
         ),
         Some(0x88) => ParsedTag::SoftFiles(
-            numeric_tag_value.expect(&format!("{url}: SoftFiles should have a numeric_tag_value")),
+            numeric_tag_value
+                .unwrap_or_else(|| panic!("{url}: SoftFiles should have a numeric_tag_value")),
         ),
         Some(0x89) => ParsedTag::HardFiles(
-            numeric_tag_value.expect(&format!("{url}: HardFiles should have a numeric_tag_value")),
+            numeric_tag_value
+                .unwrap_or_else(|| panic!("{url}: HardFiles should have a numeric_tag_value")),
         ),
-        Some(0x90) => ParsedTag::LastPingTime(numeric_tag_value.expect(&format!(
-            "{url}: LastPingTime should have a numeric_tag_value"
-        ))),
+        Some(0x90) => ParsedTag::LastPingTime(
+            numeric_tag_value
+                .unwrap_or_else(|| panic!("{url}: LastPingTime should have a numeric_tag_value")),
+        ),
         Some(0x91) => {
             if string_tag_value.is_none() {
                 let numeric_tag_value = numeric_tag_value
-                    .expect(&format!("{url}: Version should have a numeric_tag_value"));
+                    .unwrap_or_else(|| panic!("{url}: Version should have a numeric_tag_value"));
                 let major = numeric_tag_value >> 16;
                 let minor = numeric_tag_value & 0xFFFF;
                 ParsedTag::Version(format!("{}.{}", major, minor))
             } else {
                 ParsedTag::Version(
                     string_tag_value
-                        .expect(&format!("{url}: Version should have a string_tag_value")),
+                        .unwrap_or_else(|| panic!("{url}: Version should have a string_tag_value")),
                 )
             }
         }
         Some(0x92) => ParsedTag::UDPFlags(
-            numeric_tag_value.expect(&format!("{url}: UDPFlags should have a numeric_tag_value")),
+            numeric_tag_value
+                .unwrap_or_else(|| panic!("{url}: UDPFlags should have a numeric_tag_value")),
         ),
         Some(0x93) => {
             let ports = string_tag_value
-                .expect(&format!("{url}: AuxPortsList should have a string value"))
+                .unwrap_or_else(|| panic!("{url}: AuxPortsList should have a string value"))
                 .split(',')
                 .map(|s| s.parse::<u16>())
                 .flatten() // Ignore any bad ports.
@@ -279,47 +291,50 @@ fn parse_tag(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
 
             ParsedTag::AuxPortsList(ports)
         }
-        Some(0x94) => ParsedTag::LowIdUserCount(numeric_tag_value.expect(&format!(
-            "{url}: LowIdUserCount should have a numeric_tag_value"
-        ))),
+        Some(0x94) => ParsedTag::LowIdUserCount(
+            numeric_tag_value
+                .unwrap_or_else(|| panic!("{url}: LowIdUserCount should have a numeric_tag_value")),
+        ),
         Some(0x95) => ParsedTag::UdpKey(
-            numeric_tag_value.expect(&format!("{url}: UdpKey should have a numeric_tag_value")),
+            numeric_tag_value
+                .unwrap_or_else(|| panic!("{url}: UdpKey should have a numeric_tag_value")),
         ),
         // TODO: This would have been read in LE, probably need to convert to BE!
-        Some(0x96) => ParsedTag::UdpKeyIpAddr(numeric_tag_value.expect(&format!(
-            "{url}: UdpKeyIpAddr should have a numeric_tag_value"
-        ))),
+        Some(0x96) => ParsedTag::UdpKeyIpAddr(
+            numeric_tag_value
+                .unwrap_or_else(|| panic!("{url}: UdpKeyIpAddr should have a numeric_tag_value")),
+        ),
         Some(0x97) => ParsedTag::TcpObfuscationPort(
             numeric_tag_value
-                .expect(&format!(
-                    "{url}: TcpObfuscationPort should have a numeric_tag_value"
-                ))
+                .unwrap_or_else(|| {
+                    panic!("{url}: TcpObfuscationPort should have a numeric_tag_value")
+                })
                 .try_into()?,
         ),
         Some(0x98) => ParsedTag::UdpObfuscationPort(
             numeric_tag_value
-                .expect(&format!(
-                    "{url}: UdpObfuscationPort should have a numeric_tag_value"
-                ))
+                .unwrap_or_else(|| {
+                    panic!("{url}: UdpObfuscationPort should have a numeric_tag_value")
+                })
                 .try_into()?,
         ),
         None => match textual_tag_name.as_deref() {
-            Some("users") => ParsedTag::UserCount(numeric_tag_value.expect(&format!(
-                "{url}: UserCount ('users') should have a numeric_tag_value"
-            ))),
-            Some("lowusers") => ParsedTag::LowIdUserCount(numeric_tag_value.expect(&format!(
-                "{url}: LowIdUserCount ('lowusers') Should have a numeric_tag_value"
-            ))),
-            Some("files") => ParsedTag::FileCount(numeric_tag_value.expect(&format!(
-                "{url}: FileCount ('files') Should have a numeric_tag_value"
-            ))),
-            Some("maxusers") => ParsedTag::MaxUsers(numeric_tag_value.expect(&format!(
-                "{url}: MaxUsers ('maxusers') should have a numeric_tag_value"
-            ))),
-            Some("country") => ParsedTag::Country(string_tag_value.expect(&format!(
-                "{url}: Country ('country') should have a string_tag_value"
-            ))),
-            x @ _ => {
+            Some("users") => ParsedTag::UserCount(numeric_tag_value.unwrap_or_else(|| {
+                panic!("{url}: UserCount ('users') should have a numeric_tag_value")
+            })),
+            Some("lowusers") => ParsedTag::LowIdUserCount(numeric_tag_value.unwrap_or_else(|| {
+                panic!("{url}: LowIdUserCount ('lowusers') Should have a numeric_tag_value")
+            })),
+            Some("files") => ParsedTag::FileCount(numeric_tag_value.unwrap_or_else(|| {
+                panic!("{url}: FileCount ('files') Should have a numeric_tag_value")
+            })),
+            Some("maxusers") => ParsedTag::MaxUsers(numeric_tag_value.unwrap_or_else(|| {
+                panic!("{url}: MaxUsers ('maxusers') should have a numeric_tag_value")
+            })),
+            Some("country") => ParsedTag::Country(string_tag_value.unwrap_or_else(|| {
+                panic!("{url}: Country ('country') should have a string_tag_value")
+            })),
+            x => {
                 warn!(
                     " >>>> {url}: Currently unhandled textual_tag_name: {:?} - IGNORING",
                     x
@@ -327,7 +342,7 @@ fn parse_tag(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
                 ParsedTag::NoTag
             }
         },
-        x @ _ => {
+        x => {
             warn!(
                 " >>>> {url}: Currently unhandled numeric_tag_name: {:?} - IGNORING",
                 x
@@ -420,8 +435,8 @@ mod test {
         assert_eq!(s.country.as_deref(), Some("md")); // Moldova
         assert_eq!(s.soft_file_limit, Some(100_000));
         assert_eq!(s.hard_file_limit, Some(100_001));
-        assert_eq!(s.udp_flags, Some(6139)); // TODO: unpack into a flags enum.
-        assert_eq!(s.version.as_deref(), Some("17.15")); // Moldova
+        assert_eq!(s.udp_flags, Some(6139));
+        assert_eq!(s.version.as_deref(), Some("17.15"));
         assert_eq!(s.ping, Some(47));
     }
 }

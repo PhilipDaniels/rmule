@@ -1,12 +1,6 @@
-use crate::{file, times};
 use anyhow::{bail, Result};
-use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput};
-use rusqlite::{Connection, Params, Row, RowIndex, ToSql};
-use std::borrow::Cow;
-use std::net::IpAddr;
-use std::ops::Deref;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use rusqlite::types::FromSql;
+use rusqlite::{Connection, Params};
 
 pub trait ConnectionExtensions {
     /// Execute a scalar query. The query is expected to return 1 row with 1

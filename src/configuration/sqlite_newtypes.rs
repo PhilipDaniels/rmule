@@ -81,7 +81,7 @@ impl Deref for IpAddr {
 
 impl ToSql for IpAddr {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-        let ip_as_string: String = self.0.to_string().into();
+        let ip_as_string: String = self.0.to_string();
         Ok(ToSqlOutput::from(ip_as_string))
     }
 }
@@ -91,7 +91,7 @@ impl FromSql for IpAddr {
         let value = value.as_str()?;
         let ip_addr = match std::net::IpAddr::from_str(value) {
             Ok(ip) => ip,
-            Err(e) => return FromSqlResult::Err(FromSqlError::InvalidType),
+            Err(_) => return FromSqlResult::Err(FromSqlError::InvalidType),
         };
 
         FromSqlResult::Ok(Self(ip_addr))
@@ -106,7 +106,7 @@ impl From<std::net::IpAddr> for IpAddr {
 
 impl From<&std::net::IpAddr> for IpAddr {
     fn from(rhs: &std::net::IpAddr) -> Self {
-        Self(rhs.clone())
+        Self(*rhs)
     }
 }
 

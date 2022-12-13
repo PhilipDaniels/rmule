@@ -9,7 +9,7 @@ CREATE TABLE server
     active INTEGER NOT NULL,
     -- The above fields are things introduced by rMule.
     -- The following are the 'business' fields, i.e. those found in server.met.
-    ip_addr TEXT NOT NULL UNIQUE,
+    ip_addr TEXT NOT NULL UNIQUE,   -- Natural key.
     port INTEGER NOT NULL,
     name TEXT,
     description TEXT,
@@ -23,7 +23,7 @@ CREATE TABLE server
     udp_flags INTEGER,
     version TEXT,
     last_ping_time TIMESTAMP,
-    udp_key TEXT,
+    udp_key INTEGER,
     udp_key_ip_addr TEXT,
     tcp_obfuscation_port INTEGER,
     udp_obfuscation_port INTEGER,

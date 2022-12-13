@@ -1,10 +1,11 @@
 use super::{ConfigurationDb, IpAddr};
 use crate::parsers::ParsedServer;
-use crate::utils::StringExtensions;
+use crate::times;
+use crate::utils::{SliceExtensions, StringExtensions};
 use anyhow::{bail, Result};
 use bitflags::bitflags;
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput};
-use rusqlite::{Row, Statement, ToSql};
+use rusqlite::{params, Row, Statement, ToSql};
 use time::OffsetDateTime;
 use tracing::info;
 
@@ -133,39 +134,38 @@ impl ServerList {
             r#"UPDATE server SET
                 source = ?1,
                 active = ?2,
-                ip_addr = ?3,
-                port = ?4,
-                name = ?5,
-                description = ?6,
-                user_count = ?7,
-                low_id_user_count = ?8,
-                max_user_count = ?9,
-                ping_ms = ?10,
-                file_count = ?11,
-                soft_file_limit = ?12,
-                hard_file_limit = ?13,
-                udp_flags = ?14,
-                version = ?15,
-                last_ping_time = ?16,
-                udp_key = ?17,
-                udp_key_ip_addr = ?18,
-                tcp_obfuscation_port = ?19,
-                udp_obfuscation_port = ?20,
-                dns_name = ?21,
-                priority = ?22,
-                aux_ports_list = ?23,
-                fail_count = ?24,
-                updated = ?25
+                port = ?3,
+                name = ?4,
+                description = ?5,
+                user_count = ?6,
+                low_id_user_count = ?7,
+                max_user_count = ?8,
+                ping_ms = ?9,
+                file_count = ?10,
+                soft_file_limit = ?11,
+                hard_file_limit = ?12,
+                udp_flags = ?13,
+                version = ?14,
+                last_ping_time = ?15,
+                udp_key = ?16,
+                udp_key_ip_addr = ?17,
+                tcp_obfuscation_port = ?18,
+                udp_obfuscation_port = ?19,
+                dns_name = ?20,
+                priority = ?21,
+                aux_ports_list = ?22,
+                fail_count = ?23,
+                updated = ?24
                WHERE
-                ip_addr = ?26;"#,
+                ip_addr = ?25;"#,
         )?;
 
         for server in &mut self.servers {
             if server.id == 0 {
-                let id = Self::insert_server(&mut insert_stmt, &server)?;
+                let id = Self::insert_server(&mut insert_stmt, server)?;
                 server.id = id;
             } else {
-                Self::update_server(&mut update_stmt, &server)?;
+                Self::update_server(&mut update_stmt, server)?;
             }
         }
 
@@ -173,60 +173,10 @@ impl ServerList {
     }
 
     fn update_server(stmt: &mut Statement, server: &Server) -> Result<()> {
-        Ok(())
-    }
-
-    fn insert_server(stmt: &mut Statement, server: &Server) -> Result<u32> {
-        //let row = ServerRow::new(server);
-        //let params = Self::get_params2(server);
-        let mut rows = stmt.query([])?;
-
-        match rows.next()? {
-            Some(row) => {
-                let id: u32 = row.get("id")?;
-                Ok(id)
-            }
-            None => bail!("Insert of {} to server table failed", server.ip_addr),
-        }
-    }
-
-    /*
-    fn get_params2(server: &Server) -> Vec<Box<&dyn ToSql>> {
-        let mut v: Vec<Box<&dyn ToSql>> = Vec::new();
-
-        v.push(Box::new(&server.ip_addr.to_string()));
-
-        v
-    }
-
-    fn get_params<'a>(row: &'a ServerRow) -> &'a [&'a dyn ToSql] {
-        params![row.xip_addr]
-
-
-        let udp_flags = match server.udp_flags {
-            Some(p) => Some(p.bits),
-            None => None,
-        };
-
-        let priority = match &server.priority {
-            Some(p) => Some(*p as u32),
-            None => None,
-        };
-
-        let aux_ports_list = String::new();
-        for port in &server.aux_ports_list {}
-        //: String = server.aux_ports_list.iter().map(|port| port.to_string());
-
-        let ip_addr = server.ip_addr.to_string();
-        let udp_key_ip_addr = match server.udp_key_ip_addr {
-            Some(ip) => Some(ip.to_string()),
-            None => None,
-        };
-
-        params![
+        let params = params![
             server.source,
             server.active,
-            ip_addr,
+            //server.ip_addr,
             server.port,
             server.name,
             server.description,
@@ -237,21 +187,74 @@ impl ServerList {
             server.file_count,
             server.soft_file_limit,
             server.hard_file_limit,
-            udp_flags,
+            server.udp_flags,
             server.version,
             server.last_ping_time,
             server.udp_key,
-            udp_key_ip_addr,
+            server.udp_key_ip_addr,
             server.tcp_obfuscation_port,
             server.udp_obfuscation_port,
             server.dns_name,
-            priority,
-            aux_ports_list,
+            server.priority,
+            server.aux_ports_list.to_comma_string(),
             server.fail_count,
-        ]
+            times::now_to_sql(),
+            server.ip_addr,
+        ];
 
+        let row_count = stmt.execute(params)?;
+
+        if row_count != 1 {
+            bail!(
+                "Update of server with ip {} in server table failed",
+                server.ip_addr
+            );
+        }
+
+        Ok(())
     }
-    */
+
+    fn insert_server(stmt: &mut Statement, server: &Server) -> Result<u32> {
+        let params = params![
+            server.source,
+            server.active,
+            server.ip_addr,
+            server.port,
+            server.name,
+            server.description,
+            server.user_count,
+            server.low_id_user_count,
+            server.max_user_count,
+            server.ping_ms,
+            server.file_count,
+            server.soft_file_limit,
+            server.hard_file_limit,
+            server.udp_flags,
+            server.version,
+            server.last_ping_time,
+            server.udp_key,
+            server.udp_key_ip_addr,
+            server.tcp_obfuscation_port,
+            server.udp_obfuscation_port,
+            server.dns_name,
+            server.priority,
+            server.aux_ports_list.to_comma_string(),
+            server.fail_count
+        ];
+
+        let mut rows = stmt.query(params)?;
+
+        match rows.next()? {
+            Some(row) => {
+                let id: u32 = row.get("id")?;
+                Ok(id)
+            }
+            None => bail!(
+                "Insert of server with ip {} to server table failed",
+                server.ip_addr
+            ),
+        }
+    }
 }
 
 impl IntoIterator for ServerList {
@@ -327,12 +330,12 @@ impl TryFrom<&Row<'_>> for Server {
     /// from within QueryMap.
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let ports = match row.get::<_, Option<String>>("aux_ports_list")? {
-            Some(s) => s.split_comma_to_vec()?,
+            Some(s) => s.split_comma_str_to_vec()?,
             None => Vec::new(),
         };
 
         Ok(Self {
-            id: row.get("ïd")?,
+            id: row.get("id")?,
             source: row.get("source")?,
             active: row.get("active")?,
             ip_addr: row.get("ip_addr")?,
@@ -346,7 +349,7 @@ impl TryFrom<&Row<'_>> for Server {
             file_count: row.get("file_count")?,
             soft_file_limit: row.get("soft_file_limit")?,
             hard_file_limit: row.get("hard_file_limit")?,
-            udp_flags: Some(row.get("udp_flags")?),
+            udp_flags: row.get("udp_flags")?,
             version: row.get("version")?,
             last_ping_time: row.get("last_ping_time")?,
             udp_key: row.get("udp_key")?,
@@ -354,7 +357,7 @@ impl TryFrom<&Row<'_>> for Server {
             tcp_obfuscation_port: row.get("tcp_obfuscation_port")?,
             udp_obfuscation_port: row.get("udp_obfuscation_port")?,
             dns_name: row.get("dns_name")?,
-            priority: Some(row.get("priority")?),
+            priority: row.get("priority")?,
             aux_ports_list: ports,
             fail_count: row.get("fail_count")?,
         })
@@ -377,7 +380,9 @@ impl TryFrom<u32> for ServerPriority {
             0 => Ok(Self::Low),
             1 => Ok(Self::Normal),
             2 => Ok(Self::High),
-            _ => bail!("The value {value} is outside the expected range (0,1 or 2"),
+            _ => bail!(
+                "The value {value} is outside the expected range (0, 1 or 2 for ServerPriority"
+            ),
         }
     }
 }
@@ -390,7 +395,9 @@ impl TryFrom<i64> for ServerPriority {
             0 => Ok(Self::Low),
             1 => Ok(Self::Normal),
             2 => Ok(Self::High),
-            _ => bail!("The value {value} is outside the expected range (0,1 or 2"),
+            _ => bail!(
+                "The value {value} is outside the expected range (0, 1 or 2 for ServerPriority"
+            ),
         }
     }
 }
@@ -407,7 +414,7 @@ impl FromSql for ServerPriority {
         value.as_i64().and_then(|n| {
             let sp = match ServerPriority::try_from(n) {
                 Ok(sp) => sp,
-                Err(e) => return Err(FromSqlError::OutOfRange(n)),
+                Err(_) => return Err(FromSqlError::OutOfRange(n)),
             };
             FromSqlResult::Ok(sp)
         })
@@ -456,7 +463,7 @@ impl FromSql for ServerUdpActions {
             // Slightly nasty cast, but in practice safe.
             let sp = match ServerUdpActions::try_from(n as u32) {
                 Ok(sp) => sp,
-                Err(e) => return Err(FromSqlError::OutOfRange(n)),
+                Err(_) => return Err(FromSqlError::OutOfRange(n)),
             };
             FromSqlResult::Ok(sp)
         })

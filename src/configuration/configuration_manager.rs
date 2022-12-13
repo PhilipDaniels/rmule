@@ -1,14 +1,11 @@
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-
-use crate::configuration::Server;
-use crate::parsers;
-
 use super::{AddressList, ConfigurationDb, ServerList, Settings, TempDirectoryList};
+use crate::parsers;
 use anyhow::{Context, Result};
 use futures::future::join_all;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
-use tracing::{info, instrument, span, trace_span, warn};
+use tracing::{info, warn};
 
 pub type ConfigurationCommandSender = mpsc::Sender<ConfigurationCommands>;
 pub type ConfigurationCommandReceiver = mpsc::Receiver<ConfigurationCommands>;
