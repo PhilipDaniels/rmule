@@ -65,7 +65,7 @@ pub fn make_backup_filename<P: Into<PathBuf>>(path: P) -> PathBuf {
     let new_file_name = format!(
         "{}-{}",
         original.file_name().unwrap().to_string_lossy(),
-        times::now_to_yyyy_mm_dd()
+        times::now_to_yyyy_mm_dd_hh_mm_ss()
     );
 
     original.with_file_name(new_file_name)
@@ -109,13 +109,16 @@ where
     Ok(num_deleted)
 }
 
-/// Check for suffix of -YYYY-MM-DD. No need to bring in regex crate for this.
+/// Check for suffix of -YYYY-MM-DDTHH-MM-Ss. No need to bring in regex crate
+/// for this.
 fn has_backup_suffix(filename: &str) -> bool {
-    if filename.len() < 11 {
+    const SUFFIX_LEN: usize = "-YYYY-MM-DDTHH-MM-SS".len();
+    if filename.len() < SUFFIX_LEN {
         return false;
     }
 
-    let suffix: Vec<_> = filename[filename.len() - 11..].chars().collect();
+    let suffix: Vec<_> = filename[filename.len() - SUFFIX_LEN..].chars().collect();
+
     suffix[0] == '-'
         && suffix[1].is_ascii_digit()
         && suffix[2].is_ascii_digit()
@@ -127,6 +130,15 @@ fn has_backup_suffix(filename: &str) -> bool {
         && suffix[8] == '-'
         && suffix[9].is_ascii_digit()
         && suffix[10].is_ascii_digit()
+        && suffix[11] == 'T'
+        && suffix[12].is_ascii_digit()
+        && suffix[13].is_ascii_digit()
+        && suffix[14] == '-'
+        && suffix[15].is_ascii_digit()
+        && suffix[16].is_ascii_digit()
+        && suffix[17] == '-'
+        && suffix[18].is_ascii_digit()
+        && suffix[19].is_ascii_digit()
 }
 
 /// Makes a guaranteed-absolute path from a filename that may or may not

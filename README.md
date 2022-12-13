@@ -6,7 +6,6 @@ amule.cpp/364
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
 [ ] Created, updated and last_ping_time: need to decide on data type
-[ ] Backup filenames to have HH:MM:SS granularity
 
 [ ] Run as a daemon (PID file needed)
 [ ] Caching.
