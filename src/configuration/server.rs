@@ -54,7 +54,7 @@ pub struct Server {
     /// penalized.
     hard_file_limit: Option<u32>,
     /// What actions are supported via UDP.
-    udp_flags: Option<ServerUdpActions>,
+    udp_flags: Option<ServerUdpFlags>,
     /// Version and name of the software the server is running to support the
     /// ed2k network.
     version: Option<String>,
@@ -73,6 +73,7 @@ pub struct Server {
     /// Server priority.
     priority: Option<ServerPriority>,
     /// List of auxiliary ports which can be tried if the standard one fails.
+    /// This can be an empty list.
     aux_ports_list: Vec<u16>,
     /// How many times connecting to the server failed (reset to 0 on success?)
     fail_count: Option<u32>,
@@ -98,14 +99,20 @@ impl ServerList {
     /// Merges a set of parsed servers (from server.met files) into the
     /// server list. Servers are matched on ip_appr.
     pub fn merge_parsed_servers(&mut self, parsed_servers: &[ParsedServer]) {
+        let mut num_inserted = 0;
+        let mut num_updated = 0;
         for ps in parsed_servers {
             if let Some(idx) = self.servers.iter().position(|s| *s.ip_addr == ps.ip_addr) {
                 let s = self.servers.get_mut(idx).unwrap();
                 s.update_from(ps);
+                num_updated += 1;
             } else {
                 self.servers.push(ps.into());
+                num_inserted += 1;
             }
         }
+
+        info!("Updated {num_updated} existing servers, inserted {num_inserted} new ones");
     }
 
     pub fn save_all(&mut self, db: &ConfigurationDb) -> Result<()> {
@@ -308,7 +315,7 @@ impl Server {
         self.file_count = ps.file_count;
         self.soft_file_limit = ps.soft_file_limit;
         self.hard_file_limit = ps.hard_file_limit;
-        //self.udp_flags = ps.udp_flags;
+        self.udp_flags = ps.udp_flags;
         self.version = ps.version.clone();
         //self.last_ping_time = ps.last_ping_time;
         self.udp_key = ps.udp_key;
@@ -316,8 +323,8 @@ impl Server {
         self.tcp_obfuscation_port = ps.tcp_obfuscation_port;
         self.udp_obfuscation_port = ps.udp_obfuscation_port;
         self.dns_name = ps.dns.clone();
-        //self.priority = ps.preference;
-        //self.aux_ports_list = ps.aux_ports_list;
+        self.priority = ps.priority;
+        self.aux_ports_list = ps.aux_ports_list.clone().unwrap_or_default();
         self.fail_count = ps.fail_count;
     }
 }
@@ -376,14 +383,7 @@ impl TryFrom<u32> for ServerPriority {
     type Error = anyhow::Error;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Self::Low),
-            1 => Ok(Self::Normal),
-            2 => Ok(Self::High),
-            _ => bail!(
-                "The value {value} is outside the expected range (0, 1 or 2 for ServerPriority"
-            ),
-        }
+        ServerPriority::try_from(value as i64)
     }
 }
 
@@ -392,9 +392,9 @@ impl TryFrom<i64> for ServerPriority {
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(Self::Low),
-            1 => Ok(Self::Normal),
-            2 => Ok(Self::High),
+            0 => Ok(Self::Normal),
+            1 => Ok(Self::High),
+            2 => Ok(Self::Low),
             _ => bail!(
                 "The value {value} is outside the expected range (0, 1 or 2 for ServerPriority"
             ),
@@ -423,7 +423,7 @@ impl FromSql for ServerPriority {
 
 bitflags! {
     /// What actions are supported via UDP.
-    pub struct ServerUdpActions: u32 {
+    pub struct ServerUdpFlags: u32 {
         const GET_SOURCES          = 0b00000000001;
         const GET_FILES            = 0b00000000010;
         const NEW_TAGS             = 0b00000001000;
@@ -435,33 +435,24 @@ bitflags! {
     }
 }
 
-impl TryFrom<u32> for ServerUdpActions {
-    type Error = anyhow::Error;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        let flags = ServerUdpActions::from_bits(value);
-        if let Some(flags) = flags {
-            Ok(flags)
-        } else {
-            bail!(
-                "The value {} is not a valid ServerUdpFlags value, it contains extra bits",
-                value
-            )
-        }
+impl From<u32> for ServerUdpFlags {
+    fn from(value: u32) -> Self {
+        // Always convert, throw away any bits we don't understand.
+        ServerUdpFlags::from_bits_truncate(value)
     }
 }
 
-impl ToSql for ServerUdpActions {
+impl ToSql for ServerUdpFlags {
     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
         Ok(ToSqlOutput::from(self.bits))
     }
 }
 
-impl FromSql for ServerUdpActions {
+impl FromSql for ServerUdpFlags {
     fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
         value.as_i64().and_then(|n| {
             // Slightly nasty cast, but in practice safe.
-            let sp = match ServerUdpActions::try_from(n as u32) {
+            let sp = match ServerUdpFlags::try_from(n as u32) {
                 Ok(sp) => sp,
                 Err(_) => return Err(FromSqlError::OutOfRange(n)),
             };

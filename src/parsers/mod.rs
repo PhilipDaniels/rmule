@@ -1,6 +1,8 @@
 //! Implement parsers for legacy file formats
 //! such as server.met.
 
+use crate::configuration::{ServerPriority, ServerUdpFlags};
+use crate::utils::StringExtensions;
 use anyhow::{bail, Context, Result};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use core::panic;
@@ -21,7 +23,7 @@ pub struct ParsedServer {
     pub file_count: Option<u32>,
     pub soft_file_limit: Option<u32>,
     pub hard_file_limit: Option<u32>,
-    pub udp_flags: Option<u32>,
+    pub udp_flags: Option<ServerUdpFlags>,
     pub version: Option<String>,
     pub last_ping_time: Option<u32>,
     pub udp_key: Option<u32>,
@@ -29,7 +31,7 @@ pub struct ParsedServer {
     pub tcp_obfuscation_port: Option<u16>,
     pub udp_obfuscation_port: Option<u16>,
     pub dns: Option<String>,
-    pub preference: Option<u32>,
+    pub priority: Option<ServerPriority>,
     pub aux_ports_list: Option<Vec<u16>>,
     pub fail_count: Option<u32>,
 }
@@ -101,7 +103,7 @@ fn parse_server(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
         tcp_obfuscation_port: None,
         udp_obfuscation_port: None,
         dns: None,
-        preference: None,
+        priority: None,
         aux_ports_list: None,
         fail_count: None,
     };
@@ -122,13 +124,13 @@ fn parse_server(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
             ParsedTag::UserCount(n) => server.user_count = Some(n),
             ParsedTag::LowIdUserCount(n) => server.low_id_user_count = Some(n),
             ParsedTag::Country(s) => server.country = Some(s),
-            ParsedTag::UDPFlags(n) => server.udp_flags = Some(n),
+            ParsedTag::UDPFlags(n) => server.udp_flags = Some(ServerUdpFlags::try_from(n)?),
             ParsedTag::LastPingTime(n) => server.last_ping_time = Some(n),
             ParsedTag::UdpKey(n) => server.udp_key = Some(n),
             ParsedTag::UdpKeyIpAddr(n) => server.udp_key_ip_addr = Some(Ipv4Addr::from(n).into()),
             ParsedTag::TcpObfuscationPort(n) => server.tcp_obfuscation_port = Some(n),
             ParsedTag::UdpObfuscationPort(n) => server.udp_obfuscation_port = Some(n),
-            ParsedTag::Preference(n) => server.preference = Some(n),
+            ParsedTag::Preference(n) => server.priority = Some(ServerPriority::try_from(n)?),
             ParsedTag::Dns(s) => server.dns = Some(s),
             ParsedTag::AuxPortsList(ports) => server.aux_ports_list = Some(ports),
             ParsedTag::FailCount(n) => server.fail_count = Some(n),
@@ -284,10 +286,7 @@ fn parse_tag(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedTag> {
         Some(0x93) => {
             let ports = string_tag_value
                 .unwrap_or_else(|| panic!("{url}: AuxPortsList should have a string value"))
-                .split(',')
-                .map(|s| s.parse::<u16>())
-                .flatten() // Ignore any bad ports.
-                .collect::<Vec<_>>();
+                .split_comma_str_to_vec()?;
 
             ParsedTag::AuxPortsList(ports)
         }
@@ -435,7 +434,7 @@ mod test {
         assert_eq!(s.country.as_deref(), Some("md")); // Moldova
         assert_eq!(s.soft_file_limit, Some(100_000));
         assert_eq!(s.hard_file_limit, Some(100_001));
-        assert_eq!(s.udp_flags, Some(6139));
+        assert_eq!(s.udp_flags, Some(6139.into()));
         assert_eq!(s.version.as_deref(), Some("17.15"));
         assert_eq!(s.ping, Some(47));
     }
