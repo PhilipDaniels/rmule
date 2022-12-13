@@ -11,6 +11,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use tracing::{error, info, warn};
 
 pub struct ParsedServer {
+    pub source: String,
     pub ip_addr: IpAddr,
     pub port: u16,
     pub name: Option<String>,
@@ -83,6 +84,7 @@ fn parse_server(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
     //println!("Expecting {} tags", tag_count);
 
     let mut server = ParsedServer {
+        source: url.to_owned(),
         ip_addr: Ipv4Addr::from(ip_addr).into(),
         port,
         name: None,

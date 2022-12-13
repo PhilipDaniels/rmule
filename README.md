@@ -5,7 +5,6 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
-[ ] Server source needs setting
 [ ] Created, updated and last_ping_time: need to decide on data type
 [ ] Backup filenames to have HH:MM:SS granularity
 

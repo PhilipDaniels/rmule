@@ -184,7 +184,7 @@ impl ServerList {
         let params = params![
             server.source,
             server.active,
-            //server.ip_addr,
+            //server.ip_addr, THIS IS THE PK, SO NOT SET THIS TIME
             server.port,
             server.name,
             server.description,
@@ -297,7 +297,6 @@ impl From<&ParsedServer> for Server {
         let mut s = Self::default();
         s.update_from(value);
         s.id = 0;
-        s.source = "???".to_owned();
         s.active = true;
         s.ip_addr = value.ip_addr.into();
         s
@@ -306,6 +305,7 @@ impl From<&ParsedServer> for Server {
 
 impl Server {
     fn update_from(&mut self, ps: &ParsedServer) {
+        self.source = ps.source.clone();
         self.port = ps.port;
         self.name = ps.name.clone();
         self.description = ps.description.clone();
