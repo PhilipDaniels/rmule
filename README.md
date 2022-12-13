@@ -5,13 +5,10 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
-[ ] Refactor all TryFrom<Row> methods to use anyhow::Error;
-[ ] Remove database types such as DatabasePathBuf by creating a new
-    trait which adds methods to the Row type.
-    [ ] Also write a to_sqlx method.
+[ ] Server source needs setting
+[ ] Created, updated and last_ping_time: need to decide on data type
+[ ] Backup filenames to have HH:MM:SS granularity
 
-[ ] List of servers. See ServerList.cpp for operations.
-  [ ] Write all servers back to server.met.
 [ ] Run as a daemon (PID file needed)
 [ ] Caching.
   [ ] X minutes.
@@ -55,5 +52,4 @@ https://crates.io/crates/tokio-console
 ## GUI
 - Multiple UI windows may be opened to monitor the same running rMule.
 - The 'progress bar' for a download shows 'grouped' progress rather than
-   'by chunk'.
-
+  'by chunk'.

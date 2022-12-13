@@ -101,6 +101,7 @@ impl ServerList {
     pub fn merge_parsed_servers(&mut self, parsed_servers: &[ParsedServer]) {
         let mut num_inserted = 0;
         let mut num_updated = 0;
+
         for ps in parsed_servers {
             if let Some(idx) = self.servers.iter().position(|s| *s.ip_addr == ps.ip_addr) {
                 let s = self.servers.get_mut(idx).unwrap();
