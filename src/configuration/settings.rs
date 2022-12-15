@@ -2,12 +2,13 @@ use super::{ConfigurationDb, PathBuf};
 use crate::times;
 use anyhow::Result;
 use rusqlite::{params, Row};
+use time::OffsetDateTime;
 use tracing::info;
 
 #[derive(Debug)]
 pub struct Settings {
-    pub created: time::OffsetDateTime,
-    pub updated: time::OffsetDateTime,
+    pub created: OffsetDateTime,
+    pub updated: OffsetDateTime,
 
     /// Name we are known by on the ed2k network.
     pub nick_name: String,
