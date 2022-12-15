@@ -5,10 +5,6 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
-[ ] Created, updated and last_ping_time: need to decide on data type
-    TEXT in the database
-    time::OffsetDateTime in the model
-
 [ ] Run as a daemon (PID file needed)
 [ ] Caching.
   [ ] X minutes.

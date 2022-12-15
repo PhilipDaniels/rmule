@@ -48,7 +48,7 @@ impl Settings {
             let now = times::now();
             let ddir_pb = dirs::download_dir().unwrap_or_else(|| "Downloads".into());
             let default_settings = Self {
-                created: now.clone(),
+                created: now,
                 updated: now,
                 nick_name: "http://www.rMule.org".to_owned(),
                 default_downloads_directory: ddir_pb.into(),

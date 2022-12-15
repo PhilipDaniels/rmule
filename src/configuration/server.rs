@@ -18,8 +18,10 @@ pub struct ServerList {
 /// are mandatory to establish a connection to a server, however most of
 /// the other fields are usually provided in a server.met file.
 /// See http://wiki.amule.org/t/index.php?title=Server.met_file
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Server {
+    created: OffsetDateTime,
+    updated: OffsetDateTime,
     /// The Id of the server, from the database table.
     id: u32,
     /// The download URL or "manual" from where this server originated.
@@ -121,6 +123,7 @@ impl ServerList {
         let mut insert_stmt = conn.prepare(
             r#"INSERT INTO server
                   (
+                  created, updated,
                   source, active, ip_addr, port, name,
                   description, user_count, low_id_user_count, max_user_count, ping_ms,
                   file_count, soft_file_limit, hard_file_limit, udp_flags, version,
@@ -133,46 +136,52 @@ impl ServerList {
                     ?6, ?7, ?8, ?9, ?10,
                     ?11, ?12, ?13, ?14, ?15,
                     ?16, ?17, ?18, ?19, ?20,
-                    ?21, ?22, ?23, ?24
+                    ?21, ?22, ?23, ?24, ?25, ?26
                   )
                RETURNING id"#,
         )?;
 
         let mut update_stmt = conn.prepare(
             r#"UPDATE server SET
-                source = ?1,
-                active = ?2,
-                port = ?3,
-                name = ?4,
-                description = ?5,
-                user_count = ?6,
-                low_id_user_count = ?7,
-                max_user_count = ?8,
-                ping_ms = ?9,
-                file_count = ?10,
-                soft_file_limit = ?11,
-                hard_file_limit = ?12,
-                udp_flags = ?13,
-                version = ?14,
-                last_ping_time = ?15,
-                udp_key = ?16,
-                udp_key_ip_addr = ?17,
-                tcp_obfuscation_port = ?18,
-                udp_obfuscation_port = ?19,
-                dns_name = ?20,
-                priority = ?21,
-                aux_ports_list = ?22,
-                fail_count = ?23,
-                updated = ?24
+                updated = ?1,
+                source = ?2,
+                active = ?3,
+                port = ?4,
+                name = ?5,
+                description = ?6,
+                user_count = ?7,
+                low_id_user_count = ?8,
+                max_user_count = ?9,
+                ping_ms = ?10,
+                file_count = ?11,
+                soft_file_limit = ?12,
+                hard_file_limit = ?13,
+                udp_flags = ?14,
+                version = ?15,
+                last_ping_time = ?16,
+                udp_key = ?17,
+                udp_key_ip_addr = ?18,
+                tcp_obfuscation_port = ?19,
+                udp_obfuscation_port = ?20,
+                dns_name = ?21,
+                priority = ?22,
+                aux_ports_list = ?23,
+                fail_count = ?24,
+                updated = ?25
                WHERE
-                ip_addr = ?25;"#,
+                ip_addr = ?26;"#,
         )?;
 
         for server in &mut self.servers {
+            let now = times::now();
+
             if server.id == 0 {
+                server.created = now;
+                server.updated = now;
                 let id = Self::insert_server(&mut insert_stmt, server)?;
                 server.id = id;
             } else {
+                server.updated = now;
                 Self::update_server(&mut update_stmt, server)?;
             }
         }
@@ -182,6 +191,7 @@ impl ServerList {
 
     fn update_server(stmt: &mut Statement, server: &Server) -> Result<()> {
         let params = params![
+            server.updated,
             server.source,
             server.active,
             //server.ip_addr, THIS IS THE PK, SO NOT SET THIS TIME
@@ -224,6 +234,8 @@ impl ServerList {
 
     fn insert_server(stmt: &mut Statement, server: &Server) -> Result<u32> {
         let params = params![
+            server.created,
+            server.updated,
             server.source,
             server.active,
             server.ip_addr,
@@ -303,6 +315,42 @@ impl From<&ParsedServer> for Server {
     }
 }
 
+impl Default for Server {
+    fn default() -> Self {
+        let now = times::now();
+
+        Self {
+            created: now,
+            updated: now,
+            id: Default::default(),
+            source: Default::default(),
+            active: Default::default(),
+            ip_addr: Default::default(),
+            port: Default::default(),
+            name: Default::default(),
+            description: Default::default(),
+            user_count: Default::default(),
+            low_id_user_count: Default::default(),
+            max_user_count: Default::default(),
+            ping_ms: Default::default(),
+            file_count: Default::default(),
+            soft_file_limit: Default::default(),
+            hard_file_limit: Default::default(),
+            udp_flags: Default::default(),
+            version: Default::default(),
+            last_ping_time: Default::default(),
+            udp_key: Default::default(),
+            udp_key_ip_addr: Default::default(),
+            tcp_obfuscation_port: Default::default(),
+            udp_obfuscation_port: Default::default(),
+            dns_name: Default::default(),
+            priority: Default::default(),
+            aux_ports_list: Default::default(),
+            fail_count: Default::default(),
+        }
+    }
+}
+
 impl Server {
     fn update_from(&mut self, ps: &ParsedServer) {
         self.source = ps.source.clone();
@@ -343,6 +391,8 @@ impl TryFrom<&Row<'_>> for Server {
         };
 
         Ok(Self {
+            created: row.get("created")?,
+            updated: row.get("updated")?,
             id: row.get("id")?,
             source: row.get("source")?,
             active: row.get("active")?,

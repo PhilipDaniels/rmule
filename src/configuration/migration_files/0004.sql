@@ -3,8 +3,8 @@
 CREATE TABLE server
     (
     id INTEGER PRIMARY KEY,
-    created TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-    updated TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
+    created TEXT NOT NULL,
+    updated TEXT NOT NULL,
     source TEXT NOT NULL,
     active INTEGER NOT NULL,
     -- The above fields are things introduced by rMule.
