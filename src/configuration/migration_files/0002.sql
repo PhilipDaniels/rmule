@@ -7,7 +7,7 @@ CREATE TABLE address
     id INTEGER PRIMARY KEY,
     created TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
     updated TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-    url TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL,
     active INTEGER NOT NULL
     );

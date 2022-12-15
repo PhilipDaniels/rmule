@@ -6,6 +6,8 @@ amule.cpp/364
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
 [ ] Created, updated and last_ping_time: need to decide on data type
+    TEXT in the database
+    time::OffsetDateTime in the model
 
 [ ] Run as a daemon (PID file needed)
 [ ] Caching.
@@ -22,7 +24,7 @@ amule.cpp/364
 
 # Main crates used
 - [rusqlite](https://crates.io/crates/rusqlite) rMule stores its configuration in a SQLite database, and the temporary
-  download files are stored in one or more SQLLite databases before being finally
+  download files are stored in one or more SQLite databases before being finally
   written to their completed, physical OS files.
 - [tokio](https://crates.io/crates/tokio) is used for network and disk IO, and its channels are used for communication
   between the various subsystems of rMule.

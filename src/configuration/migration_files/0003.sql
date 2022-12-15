@@ -8,7 +8,7 @@ CREATE TABLE temp_directory
     id INTEGER PRIMARY KEY,
     created TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
     updated TIMESTAMP NOT NULL DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-    directory TEXT NOT NULL
+    directory TEXT NOT NULL UNIQUE
     );
 
 

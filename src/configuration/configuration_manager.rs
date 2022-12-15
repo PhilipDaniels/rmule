@@ -162,24 +162,22 @@ impl ConfigurationManager {
     pub async fn load_all_configuration(&mut self) -> Result<()> {
         let config_db = ConfigurationDb::open(&self.config_dir)?;
 
-        let settings = Self::load_settings(&config_db)?;
-        let address_list = Self::load_address_list(&config_db)?;
+        let settings = Arc::new(Settings::load(&config_db)?);
+        let address_list = Arc::new(AddressList::load_all(&config_db)?);
 
-        let servers;
-        if settings.auto_update_server_list {
+        let servers = if settings.auto_update_server_list {
             if address_list.is_empty() {
                 warn!("Cannot auto-update server list due to empty address table");
-                servers = Self::load_servers(&config_db)?;
+                Arc::new(ServerList::load_all(&config_db)?)
             } else {
-                servers = self
-                    .auto_update_server_list(&config_db, &address_list)
-                    .await?;
+                self.auto_update_server_list(&config_db, &address_list)
+                    .await?
             }
         } else {
-            servers = Self::load_servers(&config_db)?;
-        }
+            Arc::new(ServerList::load_all(&config_db)?)
+        };
 
-        let temp_dirs = Self::load_temp_directories(&config_db)?;
+        let temp_dirs = Arc::new(TempDirectoryList::load_all(&config_db)?);
 
         // Store this for later use.
         self.config_db = Some(config_db);
@@ -213,36 +211,4 @@ impl ConfigurationManager {
     }
 
     fn shutdown(&mut self) {}
-
-    fn load_settings(config_db: &ConfigurationDb) -> Result<Arc<Settings>> {
-        Ok(Arc::new(Settings::load(config_db)?))
-        // self.events_sender
-        //     .send(ConfigurationEvents::SettingsChange(Arc::new(settings)))?;
-        // Ok(())
-    }
-
-    fn load_address_list(config_db: &ConfigurationDb) -> Result<Arc<AddressList>, anyhow::Error> {
-        Ok(Arc::new(AddressList::load_all(config_db)?))
-        // self.events_sender
-        //     .send(ConfigurationEvents::AddressListChange(Arc::new(
-        //         address_list,
-        //     )))?;
-        // Ok(())
-    }
-
-    fn load_temp_directories(config_db: &ConfigurationDb) -> Result<Arc<TempDirectoryList>> {
-        Ok(Arc::new(TempDirectoryList::load_all(config_db)?))
-        // self.events_sender
-        //     .send(ConfigurationEvents::TempDirectoryListChange(Arc::new(
-        //         temp_dirs,
-        //     )))?;
-        // Ok(())
-    }
-
-    fn load_servers(config_db: &ConfigurationDb) -> Result<Arc<ServerList>> {
-        Ok(Arc::new(ServerList::load_all(config_db)?))
-        // self.events_sender
-        //     .send(ConfigurationEvents::ServerListChange(Arc::new(servers)))?;
-        // Ok(())
-    }
 }
