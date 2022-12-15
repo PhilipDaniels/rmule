@@ -1,7 +1,9 @@
 use super::{ConfigurationDb, PathBuf};
+use crate::times;
 use anyhow::{bail, Result};
-use rusqlite::Row;
+use rusqlite::{params, Row};
 use std::path::Path;
+use time::OffsetDateTime;
 use tracing::info;
 
 /// The rmule equivalent of the "temp directory" setting from emule.
@@ -16,6 +18,8 @@ pub struct TempDirectoryList {
 
 #[derive(Debug)]
 pub struct TempDirectory {
+    created: OffsetDateTime,
+    updated: OffsetDateTime,
     id: u32,
     directory: PathBuf,
 }
@@ -26,6 +30,8 @@ impl TryFrom<&Row<'_>> for TempDirectory {
     /// Build a TempDirectory value from a Rusqlite Row.
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
+            created: row.get("created")?,
+            updated: row.get("updated")?,
             id: row.get("id")?,
             directory: row.get("directory")?,
         })
@@ -36,7 +42,7 @@ impl TempDirectoryList {
     /// Load all temporary directories from the database.
     pub fn load_all(db: &ConfigurationDb) -> Result<Self> {
         let conn = db.conn();
-        let mut stmt = conn.prepare("SELECT id, directory FROM temp_directory")?;
+        let mut stmt = conn.prepare("SELECT * FROM temp_directory")?;
 
         let mut directories: Vec<TempDirectory> = stmt
             .query_map([], |row| TempDirectory::try_from(row))?
@@ -92,16 +98,19 @@ impl TempDirectoryList {
     pub fn insert(db: &ConfigurationDb, path: &Path) -> Result<TempDirectory> {
         let conn = db.conn();
         let mut stmt = conn.prepare(
-            r#"INSERT INTO temp_directory(directory) VALUES (?1)
+            r#"INSERT INTO temp_directory(created, updated, directory) VALUES (?1, ?2, ?3)
                RETURNING id"#,
         )?;
 
+        let now = times::now();
         let path: PathBuf = path.into();
-        let mut rows = stmt.query([&path])?;
+        let mut rows = stmt.query(params![now, now, &path])?;
         match rows.next()? {
             Some(row) => {
                 let id: u32 = row.get("id")?;
                 Ok(TempDirectory {
+                    created: now,
+                    updated: now,
                     id,
                     directory: path,
                 })
