@@ -1,11 +1,15 @@
 use super::{ConfigurationDb, PathBuf};
+use crate::times;
 use anyhow::Result;
 use rusqlite::{params, Row};
-use time::OffsetDateTime;
 use tracing::info;
 
 #[derive(Debug)]
 pub struct Settings {
+    pub created: time::OffsetDateTime,
+    pub updated: time::OffsetDateTime,
+
+    /// Name we are known by on the ed2k network.
     pub nick_name: String,
     /// Default downloads directory to be used if not set on the TempDirectory
     /// or on the download itself.
@@ -20,6 +24,8 @@ impl TryFrom<&Row<'_>> for Settings {
     /// Build a Settings value from a Rusqlite Row.
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
+            created: row.get("created")?,
+            updated: row.get("updated")?,
             nick_name: row.get("nick_name")?,
             default_downloads_directory: row.get("default_downloads_directory")?,
             auto_update_server_list: row.get("auto_update_server_list")?,
@@ -38,8 +44,11 @@ impl Settings {
             Ok(Settings::try_from(row)?)
         } else {
             info!("No settings rows in database, creating default");
+            let now = times::now();
             let ddir_pb = dirs::download_dir().unwrap_or_else(|| "Downloads".into());
             let default_settings = Self {
+                created: now.clone(),
+                updated: now,
                 nick_name: "http://www.rMule.org".to_owned(),
                 default_downloads_directory: ddir_pb.into(),
                 auto_update_server_list: true,
@@ -86,7 +95,7 @@ impl Settings {
                 self.nick_name,
                 self.default_downloads_directory,
                 self.auto_update_server_list,
-                OffsetDateTime::now_local()?,
+                times::now(),
             ],
         )?;
 
@@ -96,13 +105,15 @@ impl Settings {
 
     pub fn insert(&self, db: &ConfigurationDb) -> Result<()> {
         db.conn().execute(
-            r#"INSERT INTO settings(nick_name, default_downloads_directory, auto_update_server_list)
-                VALUES(?1, ?2, ?3);
+            r#"INSERT INTO settings(created, updated, nick_name, default_downloads_directory, auto_update_server_list)
+                VALUES(?1, ?2, ?3, ?4, ?5);
             "#,
             params![
+                self.created,
+                self.updated,
                 self.nick_name,
                 self.default_downloads_directory,
-                self.auto_update_server_list
+                self.auto_update_server_list,
             ],
         )?;
 
