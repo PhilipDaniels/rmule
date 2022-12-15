@@ -36,28 +36,3 @@ impl ConnectionExtensions for Connection {
         Ok(count == 1)
     }
 }
-
-/*
-pub trait RowExtensions {
-    fn get_ip_addr<I: RowIndex>(&self, idx: I) -> Result<Option<IpAddr>>;
-    fn get_path_buf<I: RowIndex>(&self, idx: I) -> Result<Option<PathBuf>>;
-}
-
-impl<'a> RowExtensions for Row<'a> {
-    fn get_ip_addr<I: RowIndex>(&self, idx: I) -> Result<Option<IpAddr>> {
-        let s = self.get_ref(idx)?.as_str_or_null()?;
-        match s {
-            Some(s) => Ok(Some(IpAddr::from_str(s)?)),
-            None => Ok(None),
-        }
-    }
-
-    fn get_path_buf<I: RowIndex>(&self, idx: I) -> Result<Option<PathBuf>> {
-        let s = self.get_ref(idx)?.as_str_or_null()?;
-        match s {
-            Some(s) => Ok(Some(s.into())),
-            None => Ok(None),
-        }
-    }
-}
-*/

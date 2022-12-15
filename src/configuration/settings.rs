@@ -60,29 +60,6 @@ impl Settings {
         }
     }
 
-    /*
-    /// Makes any paths found in the Settings into absolute ones.
-    ///
-    /// We have a post-condition that any paths returned from the configuration
-    /// db to the wider program will always be absolute paths, and this
-    /// method helps to enforce that.
-    ///
-    /// Returns the number of settings changed.
-    pub fn make_absolute(&mut self, within_dir: &Path) -> usize {
-        let mut num_made_abs = 0;
-
-        if self.default_downloads_directory.make_absolute(within_dir) {
-            info!(
-                "Settings: Made 'default_downloads_directory' absolute, is now {}",
-                self.default_downloads_directory.to_string_lossy()
-            );
-            num_made_abs += 1;
-        }
-
-        num_made_abs
-    }
-    */
-
     /// Updates existing settings in the database.
     pub fn update(&self, db: &ConfigurationDb) -> Result<()> {
         db.conn().execute(

@@ -65,34 +65,6 @@ impl TempDirectoryList {
         Ok(Self { directories })
     }
 
-    /*
-    /// Makes any paths found in the directories list into absolute ones.
-    /// This is not possible for paths added via the 'add' method because
-    /// it guards against relative paths, but for initial data inserted into
-    /// the database at migration time it can happen.
-    ///
-    /// We have a post-condition that any paths returned from the configuration
-    /// db to the wider program will always be absolute paths, and this
-    /// method helps to enforce that.
-    ///
-    /// Returns the number of directories changed.
-    pub fn make_absolute(&mut self, within_dir: &Path) -> usize {
-        let mut num_made_abs = 0;
-
-        for temp_dir in &mut self.directories {
-            if temp_dir.directory.make_absolute(within_dir) {
-                info!(
-                    "Made temp_directory absolute, is now {}",
-                    temp_dir.directory.to_string_lossy()
-                );
-                num_made_abs += 1;
-            }
-        }
-
-        num_made_abs
-    }
-    */
-
     /// Inserts a new temp directory. Returns a value with the id field
     /// correctly set from the database.
     pub fn insert(db: &ConfigurationDb, path: &Path) -> Result<TempDirectory> {
