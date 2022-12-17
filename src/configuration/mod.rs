@@ -2,6 +2,7 @@ mod address;
 mod configuration_db;
 mod configuration_manager;
 mod migrations;
+mod parsing;
 mod server;
 mod settings;
 mod sqlite_extensions;

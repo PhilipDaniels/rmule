@@ -1,5 +1,5 @@
+use super::parsing::ParsedServer;
 use super::{ConfigurationDb, IpAddr};
-use crate::parsers::ParsedServer;
 use crate::times;
 use crate::utils::{SliceExtensions, StringExtensions};
 use anyhow::{bail, Result};

@@ -13,7 +13,6 @@ use crate::configuration::ConfigurationManagerHandle;
 
 mod configuration;
 mod file;
-mod parsers;
 mod times;
 mod utils;
 

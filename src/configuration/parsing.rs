@@ -370,7 +370,7 @@ mod test {
     pub fn test_parse_of_valid_server_data_minimal() {
         // This is a minimal, uncompressed file with only server name and description
         // tags.
-        let input = include_bytes!("www.gruk.org.server.met");
+        let input = include_bytes!("test_assets/www.gruk.org.server.met");
         let servers = parse_servers("test.com", input).unwrap();
         assert_eq!(servers.len(), 6);
 
@@ -420,7 +420,7 @@ mod test {
     #[test]
     pub fn test_parse_of_valid_server_data_maximal() {
         // This is a maximal, uncompressed file with most tags set.
-        let input = include_bytes!("shortypower.org.server.met");
+        let input = include_bytes!("test_assets/shortypower.org.server.met");
         let servers = parse_servers("test.com", input).unwrap();
         assert_eq!(servers.len(), 10);
 
