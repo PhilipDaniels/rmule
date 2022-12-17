@@ -215,7 +215,7 @@ impl ServerList {
             server.priority,
             server.aux_ports_list.to_comma_string(),
             server.fail_count,
-            times::now_to_sql(),
+            times::now(),
             server.id,
         ];
 
