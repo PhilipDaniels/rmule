@@ -18,7 +18,7 @@ pub struct AddressList {
 pub struct Address {
     pub created: OffsetDateTime,
     pub updated: OffsetDateTime,
-    pub id: u32,
+    pub id: i64,
     pub url: String,
     pub description: String,
     pub active: bool,
@@ -134,21 +134,16 @@ impl AddressList {
         let conn = db.conn();
         let mut stmt = conn.prepare(
             r#"INSERT INTO address(created, updated, url, description, active)
-               VALUES (?1, ?2, ?3, ?4, ?5)
-               RETURNING id"#,
+               VALUES (?1, ?2, ?3, ?4, ?5)"#,
         )?;
 
         let now = times::now();
-        let mut rows = stmt.query(params![now, now, url, description, 1])?;
-        let id = rows
-            .next()?
-            .expect("Insert to address table failed")
-            .get("id")?;
+        stmt.execute(params![now, now, url, description, 1])?;
 
         let addr = Address {
             created: now,
             updated: now,
-            id,
+            id: conn.last_insert_rowid(),
             url: url.to_owned(),
             description: description.to_owned(),
             active: true,

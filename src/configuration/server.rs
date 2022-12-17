@@ -5,7 +5,7 @@ use crate::utils::{SliceExtensions, StringExtensions};
 use anyhow::{bail, Result};
 use bitflags::bitflags;
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput};
-use rusqlite::{params, Row, Statement, ToSql};
+use rusqlite::{params, Connection, Row, Statement, ToSql};
 use time::OffsetDateTime;
 use tracing::info;
 
@@ -23,7 +23,7 @@ pub struct Server {
     created: OffsetDateTime,
     updated: OffsetDateTime,
     /// The Id of the server, from the database table.
-    id: u32,
+    id: i64,
     /// The download URL or "manual" from where this server originated.
     source: String,
     /// A flag to indicate whether the server is active. This allows us to
@@ -137,8 +137,7 @@ impl ServerList {
                     ?11, ?12, ?13, ?14, ?15,
                     ?16, ?17, ?18, ?19, ?20,
                     ?21, ?22, ?23, ?24, ?25, ?26
-                  )
-               RETURNING id"#,
+                  )"#,
         )?;
 
         let mut update_stmt = conn.prepare(
@@ -169,7 +168,7 @@ impl ServerList {
                 fail_count = ?24,
                 updated = ?25
                WHERE
-                ip_addr = ?26;"#,
+                id = ?26;"#,
         )?;
 
         for server in &mut self.servers {
@@ -178,7 +177,7 @@ impl ServerList {
             if server.id == 0 {
                 server.created = now;
                 server.updated = now;
-                let id = Self::insert_server(&mut insert_stmt, server)?;
+                let id = Self::insert_server(&conn, &mut insert_stmt, server)?;
                 server.id = id;
             } else {
                 server.updated = now;
@@ -194,7 +193,7 @@ impl ServerList {
             server.updated,
             server.source,
             server.active,
-            //server.ip_addr, THIS IS THE PK, SO NOT SET THIS TIME
+            //server.ip_addr, THIS IS THE PK, SO DO NOT CHANGE FOR UPDATES
             server.port,
             server.name,
             server.description,
@@ -217,14 +216,15 @@ impl ServerList {
             server.aux_ports_list.to_comma_string(),
             server.fail_count,
             times::now_to_sql(),
-            server.ip_addr,
+            server.id,
         ];
 
         let row_count = stmt.execute(params)?;
 
         if row_count != 1 {
             bail!(
-                "Update of server with ip {} in server table failed",
+                "Update of server {} with ip {} in server table failed",
+                server.id,
                 server.ip_addr
             );
         }
@@ -232,7 +232,7 @@ impl ServerList {
         Ok(())
     }
 
-    fn insert_server(stmt: &mut Statement, server: &Server) -> Result<u32> {
+    fn insert_server(conn: &Connection, stmt: &mut Statement, server: &Server) -> Result<i64> {
         let params = params![
             server.created,
             server.updated,
@@ -262,18 +262,8 @@ impl ServerList {
             server.fail_count
         ];
 
-        let mut rows = stmt.query(params)?;
-
-        match rows.next()? {
-            Some(row) => {
-                let id: u32 = row.get("id")?;
-                Ok(id)
-            }
-            None => bail!(
-                "Insert of server with ip {} to server table failed",
-                server.ip_addr
-            ),
-        }
+        stmt.execute(params)?;
+        Ok(conn.last_insert_rowid())
     }
 }
 

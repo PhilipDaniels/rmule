@@ -5,6 +5,12 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
+[ ] Move mod/parsers to parsers.rs – in configuration?
+[ ] SliceExtensions – make to_comma_string generic but not the trait itself
+[ ] Remove now_to_sql
+[ ] Allow multiple temp dirs. To point to the same location
+[ ] Delete temp db if it becomes empty
+
 [ ] Run as a daemon (PID file needed)
 [ ] Caching.
   [ ] X minutes.

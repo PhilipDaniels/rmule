@@ -1,6 +1,6 @@
 use super::{ConfigurationDb, PathBuf};
 use crate::times;
-use anyhow::{bail, Result};
+use anyhow::Result;
 use rusqlite::{params, Row};
 use std::path::Path;
 use time::OffsetDateTime;
@@ -20,7 +20,7 @@ pub struct TempDirectoryList {
 pub struct TempDirectory {
     created: OffsetDateTime,
     updated: OffsetDateTime,
-    id: u32,
+    id: i64,
     directory: PathBuf,
 }
 
@@ -70,28 +70,20 @@ impl TempDirectoryList {
     pub fn insert(db: &ConfigurationDb, path: &Path) -> Result<TempDirectory> {
         let conn = db.conn();
         let mut stmt = conn.prepare(
-            r#"INSERT INTO temp_directory(created, updated, directory) VALUES (?1, ?2, ?3)
-               RETURNING id"#,
+            r#"INSERT INTO temp_directory(created, updated, directory) VALUES (?1, ?2, ?3);"#,
         )?;
 
         let now = times::now();
         let path: PathBuf = path.into();
-        let mut rows = stmt.query(params![now, now, &path])?;
-        match rows.next()? {
-            Some(row) => {
-                let id: u32 = row.get("id")?;
-                Ok(TempDirectory {
-                    created: now,
-                    updated: now,
-                    id,
-                    directory: path,
-                })
-            }
-            None => bail!(
-                "Insert of {} to temp_directory table failed",
-                path.to_string_lossy()
-            ),
-        }
+        stmt.execute(params![now, now, &path])?;
+        let id = conn.last_insert_rowid();
+
+        Ok(TempDirectory {
+            created: now,
+            updated: now,
+            id,
+            directory: path,
+        })
     }
 
     /*
