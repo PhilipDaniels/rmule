@@ -1,8 +1,13 @@
-use std::path::PathBuf;
+#![allow(dead_code)] // TEMP: Remove this when done!
+#![forbid(unsafe_code)]
 
 use anyhow::{bail, Result};
-use rmule::{file, get_default_config_dir, initialise_tokio_tracing, inititalise_config_dir};
+use rmule::{
+    file, get_default_config_dir, initialise_configuration_mgr, initialise_tokio_tracing,
+    inititalise_config_dir,
+};
 use single_instance::SingleInstance;
+use std::path::PathBuf;
 use tracing::info;
 
 #[tokio::main]
@@ -12,8 +17,7 @@ async fn main() -> Result<()> {
     info!("Starting {}", env!("CARGO_PKG_NAME"));
     let parsed_args = parse_args()?;
     inititalise_config_dir(&parsed_args.config_directory, parsed_args.reset_config)?;
-    info!("{} is waiting...", env!("CARGO_PKG_NAME"));
-    //std::thread::sleep(Duration::from_secs(2));
+    let _cfg_mgr_handle = initialise_configuration_mgr(&parsed_args.config_directory).await?;
     info!("Closing {}", env!("CARGO_PKG_NAME"));
     Ok(())
 }

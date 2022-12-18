@@ -7,7 +7,7 @@ mod times;
 mod utils;
 
 use anyhow::{bail, Result};
-use configuration::ConfigurationDb;
+use configuration::{ConfigurationDb, ConfigurationManagerHandle};
 use std::path::{Path, PathBuf};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -57,7 +57,9 @@ pub fn inititalise_config_dir(config_dir: &Path, reset: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn initialise_actors() -> Result<()> {
-    //let _cfg_mgr_handle = ConfigurationManagerHandle::new(&config_dir).await?;
-    Ok(())
+/// Creates a new configuration manager and returns the handle via
+/// which it can be sent messages.
+pub async fn initialise_configuration_mgr(config_dir: &Path) -> Result<ConfigurationManagerHandle> {
+    let cfg_mgr_handle = ConfigurationManagerHandle::new(config_dir).await?;
+    Ok(cfg_mgr_handle)
 }
