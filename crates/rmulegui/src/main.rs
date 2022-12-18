@@ -7,9 +7,9 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    check_already_running()?;
     initialise_tokio_tracing();
     info!("Starting {}", env!("CARGO_PKG_NAME"));
-    check_already_running()?;
     let parsed_args = parse_args()?;
     inititalise_config_dir(&parsed_args.config_directory, parsed_args.reset_config)?;
     info!("{} is waiting...", env!("CARGO_PKG_NAME"));
