@@ -1,7 +1,7 @@
 use super::ConfigurationDb;
 use crate::times;
 use anyhow::Result;
-use rusqlite::{params, Row};
+use rusqlite::{params, Connection, Row, Statement};
 use time::OffsetDateTime;
 use tracing::{info, warn};
 
@@ -40,6 +40,19 @@ impl TryFrom<&Row<'_>> for Address {
     }
 }
 
+impl Address {
+    pub fn new<S: Into<String>>(url: S, description: S, active: bool) -> Self {
+        Self {
+            created: times::now(),
+            updated: times::now(),
+            id: 0,
+            url: url.into(),
+            description: description.into(),
+            active,
+        }
+    }
+}
+
 impl AddressList {
     /// Load all addresses from the database.
     pub fn load_all(db: &ConfigurationDb) -> Result<Self> {
@@ -51,61 +64,79 @@ impl AddressList {
             .flatten()
             .collect();
 
+        let mut addresses = Self { addresses };
+
         if addresses.is_empty() {
             info!("No addresses found, populating reasonable defaults (as of Dec 2022)");
-            let mut addresses = Self {
-                addresses: Vec::new(),
-            };
 
-            addresses.insert_address(db, "http://www.gruk.org/server.met.gz", "DEFAULT ADDRESS")?;
-            addresses.insert_address(db, "http://peerates.net/server.met", "DEFAULT ADDRESS")?;
-            addresses.insert_address(
-                db,
+            let a = Address::new(
+                "http://www.gruk.org/server.met.gz",
+                "DEFAULT RMULE ADDRESS",
+                true,
+            );
+            addresses.insert(&conn, a)?;
+
+            let a = Address::new(
+                "http://peerates.net/server.met",
+                "DEFAULT RMULE ADDRESS",
+                true,
+            );
+            addresses.insert(&conn, a)?;
+
+            let a = Address::new(
                 "http://shortypower.dyndns.org/server.met",
-                "DEFAULT ADDRESS",
-            )?;
+                "DEFAULT RMULE ADDRESS",
+                true,
+            );
+            addresses.insert(&conn, a)?;
 
-            // // 3 files from http://www.server-met.de/
-            addresses.insert_address(
-                db,
+            // 3 files from http://www.server-met.de
+            let a = Address::new(
                 "http://www.server-met.de/dl.php?load=gz",
-                "DEFAULT ADDRESS, Curated (best) from this site",
-            )?;
-            addresses.insert_address(
-                db,
+                "DEFAULT RMULE ADDRESS, Curated (best) from this site",
+                true,
+            );
+            addresses.insert(&conn, a)?;
+
+            let a = Address::new(
                 "http://www.server-met.de/dl.php?load=min",
-                "DEFAULT ADDRESS, Curated (medium) from this site",
-            )?;
-            addresses.insert_address(
-                db,
+                "DEFAULT RMULE ADDRESS, Curated (medium) from this site",
+                true,
+            );
+            addresses.insert(&conn, a)?;
+
+            let a = Address::new(
                 "http://www.server-met.de/dl.php?load=max",
-                "DEFAULT ADDRESS, Curated (All) from this site",
-            )?;
+                "DEFAULT ARMULE DDRESS, Curated (All) from this site",
+                true,
+            );
+            addresses.insert(&conn, a)?;
 
-            // // 3 files from http://ed2k.2x4u.de/index.html
-            addresses.insert_address(
-                db,
+            // 3 files from http://ed2k.2x4u.de/index.html
+            let a = Address::new(
                 "http://ed2k.2x4u.de/v1s4vbaf/micro/server.met",
-                "DEFAULT ADDRESS, Curated (Connect List) from this site",
-            )?;
+                "DEFAULT RMULE ADDRESS, Curated (Connect List) from this site",
+                true,
+            );
+            addresses.insert(&conn, a)?;
 
-            addresses.insert_address(
-                db,
+            let a = Address::new(
                 "http://ed2k.2x4u.de/v1s4vbaf/min/server.met",
-                "DEFAULT ADDRESS, Curated (Best) from this site",
-            )?;
+                "DEFAULT RMULE ADDRESS, Curated (Best) from this site",
+                true,
+            );
+            addresses.insert(&conn, a)?;
 
-            addresses.insert_address(
-                db,
-                "http://ed2k.2x4u.de/v1s4vbaf/max/server.met",
-                "DEFAULT ADDRESS, Curated (All) from this site",
-            )?;
-
-            Ok(addresses)
-        } else {
-            info!("Loaded {} rows from address", addresses.len());
-            Ok(Self { addresses })
+            let a = Address::new(
+                "hhttp://ed2k.2x4u.de/v1s4vbaf/max/server.met",
+                "DEFAULT RMULE ADDRESS, Curated (All) from this site",
+                true,
+            );
+            addresses.insert(&conn, a)?;
         }
+
+        info!("Loaded {} rows from address", addresses.len());
+        Ok(addresses)
     }
 
     pub fn len(&self) -> usize {
@@ -116,43 +147,81 @@ impl AddressList {
         self.addresses.len() == 0
     }
 
-    pub fn insert_address(
-        &mut self,
-        db: &ConfigurationDb,
-        url: &str,
-        description: &str,
-    ) -> Result<()> {
-        if self
+    pub fn iter(&self) -> std::slice::Iter<Address> {
+        self.into_iter()
+    }
+
+    pub fn insert(&mut self, conn: &Connection, mut address: Address) -> Result<()> {
+        if let Some(existing) = self
             .addresses
             .iter()
-            .any(|a| a.url.to_lowercase() == url.to_lowercase())
+            .find(|a| a.url.to_lowercase() == address.url.to_lowercase())
         {
-            warn!("Address {} is already in the address list, ignoring", url);
+            warn!(
+                "Address {} is already in the address list with id of {}, ignoring",
+                existing.url, existing.id
+            );
             return Ok(());
         }
 
-        let conn = db.conn();
-        let mut stmt = conn.prepare(
+        address.created = times::now();
+        address.updated = address.created;
+
+        let params = params![
+            address.created,
+            address.updated,
+            address.url,
+            address.description,
+            address.active
+        ];
+
+        let mut stmt = Self::insert_stmt(&conn)?;
+        stmt.execute(params)?;
+        address.id = conn.last_insert_rowid();
+        info!(
+            "Inserted address {} with url of {}",
+            address.id, address.url
+        );
+        self.addresses.push(address);
+        Ok(())
+    }
+
+    pub fn update(&mut self, conn: &Connection, address: &mut Address) -> Result<()> {
+        address.updated = times::now();
+
+        let params = params![
+            address.updated,
+            address.url,
+            address.description,
+            address.active,
+            address.id
+        ];
+
+        let mut stmt = Self::update_stmt(&conn)?;
+        stmt.execute(params)?;
+
+        info!("Updated address {} with url of {}", address.id, address.url);
+
+        Ok(())
+    }
+
+    fn update_stmt(conn: &Connection) -> Result<Statement<'_>> {
+        Ok(conn.prepare(
+            r#"UPDATE address SET
+                updated = ?1,
+                url = ?2,
+                description = ?3,
+                active = ?4
+            WHERE
+                id = ?5"#,
+        )?)
+    }
+
+    fn insert_stmt(conn: &Connection) -> Result<Statement<'_>> {
+        Ok(conn.prepare(
             r#"INSERT INTO address(created, updated, url, description, active)
                VALUES (?1, ?2, ?3, ?4, ?5)"#,
-        )?;
-
-        let now = times::now();
-        stmt.execute(params![now, now, url, description, 1])?;
-
-        let addr = Address {
-            created: now,
-            updated: now,
-            id: conn.last_insert_rowid(),
-            url: url.to_owned(),
-            description: description.to_owned(),
-            active: true,
-        };
-
-        info!("Inserted address {} with id of {}", addr.url, addr.id);
-
-        self.addresses.push(addr);
-        Ok(())
+        )?)
     }
 }
 

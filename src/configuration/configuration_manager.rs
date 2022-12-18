@@ -1,4 +1,4 @@
-use super::{AddressList, ConfigurationDb, ServerList, Settings, TempDirectoryList};
+use super::{Address, AddressList, ConfigurationDb, ServerList, Settings, TempDirectoryList};
 use crate::configuration::parsing;
 use anyhow::{Context, Result};
 use futures::future::join_all;
@@ -103,62 +103,6 @@ impl ConfigurationManager {
         }
     }
 
-    async fn download_server_met(url: &str) -> Result<Vec<u8>> {
-        info!("Downloading server.met from {}", url);
-
-        let resp_bytes = reqwest::get(url)
-            .await
-            .with_context(|| format!("GET request to {} failed", url))?
-            .bytes()
-            .await
-            .with_context(|| format!("Could not extract bytes from response from {}", url))?;
-
-        info!("Received {} bytes from {}", resp_bytes.len(), url);
-
-        Ok(resp_bytes[..].to_vec())
-    }
-
-    async fn auto_update_server_list(
-        &self,
-        config_db: &ConfigurationDb,
-        addresses: &AddressList,
-    ) -> Result<Arc<ServerList>> {
-        info!("Auto-updating server list");
-
-        let mut current_servers = ServerList::load_all(config_db)?;
-
-        let mut tasks = Vec::new();
-
-        for addr in addresses {
-            let url = addr.url.clone();
-            tasks.push(tokio::spawn(async move {
-                // If an eror occurs during download or parsing, do not abort the
-                // program. Updating the server list is an "optional extra" and we
-                // should not stop rMule from running because we got some bad data
-                // from the internet.
-                match Self::download_server_met(&url).await {
-                    Ok(resp) => parsing::parse_servers(&url, &resp).unwrap_or_else(|_| Vec::new()),
-                    Err(_) => Vec::new(),
-                }
-            }));
-        }
-
-        let results = join_all(tasks).await;
-        let mut all_parsed_servers: Vec<_> = results
-            .into_iter()
-            .filter_map(Result::ok)
-            .flatten()
-            .collect();
-
-        all_parsed_servers.sort_by(|a, b| a.ip_addr.cmp(&b.ip_addr));
-        all_parsed_servers.dedup_by(|a, b| a.ip_addr == b.ip_addr);
-        info!("Retrieved {} unique servers", all_parsed_servers.len());
-
-        current_servers.merge_parsed_servers(&all_parsed_servers);
-        ServerList::save_all(&mut current_servers, config_db)?;
-        Ok(Arc::new(current_servers))
-    }
-
     pub async fn load_all_configuration(&mut self) -> Result<()> {
         let config_db = ConfigurationDb::open(&self.config_dir)?;
 
@@ -166,11 +110,16 @@ impl ConfigurationManager {
         let address_list = Arc::new(AddressList::load_all(&config_db)?);
 
         let servers = if settings.auto_update_server_list {
-            if address_list.is_empty() {
+            let active_addresses: Vec<_> = address_list
+                .iter()
+                .filter(|addr| addr.active == true)
+                .collect();
+
+            if active_addresses.is_empty() {
                 warn!("Cannot auto-update server list due to empty address table");
                 Arc::new(ServerList::load_all(&config_db)?)
             } else {
-                self.auto_update_server_list(&config_db, &address_list)
+                self.auto_update_server_list(&config_db, &active_addresses)
                     .await?
             }
         } else {
@@ -211,4 +160,60 @@ impl ConfigurationManager {
     }
 
     fn shutdown(&mut self) {}
+
+    async fn auto_update_server_list(
+        &self,
+        config_db: &ConfigurationDb,
+        addresses: &[&Address],
+    ) -> Result<Arc<ServerList>> {
+        info!("Auto-updating server list");
+
+        let mut current_servers = ServerList::load_all(config_db)?;
+
+        let mut tasks = Vec::new();
+
+        for addr in addresses {
+            let url = addr.url.clone();
+            tasks.push(tokio::spawn(async move {
+                // If an eror occurs during download or parsing, do not abort the
+                // program. Updating the server list is an "optional extra" and we
+                // should not stop rMule from running because we got some bad data
+                // from the internet.
+                match Self::download_server_met(&url).await {
+                    Ok(resp) => parsing::parse_servers(&url, &resp).unwrap_or_else(|_| Vec::new()),
+                    Err(_) => Vec::new(),
+                }
+            }));
+        }
+
+        let results = join_all(tasks).await;
+        let mut all_parsed_servers: Vec<_> = results
+            .into_iter()
+            .filter_map(Result::ok)
+            .flatten()
+            .collect();
+
+        all_parsed_servers.sort_by(|a, b| a.ip_addr.cmp(&b.ip_addr));
+        all_parsed_servers.dedup_by(|a, b| a.ip_addr == b.ip_addr);
+        info!("Retrieved {} unique servers", all_parsed_servers.len());
+
+        current_servers.merge_parsed_servers(&all_parsed_servers);
+        ServerList::save_all(&mut current_servers, config_db)?;
+        Ok(Arc::new(current_servers))
+    }
+
+    async fn download_server_met(url: &str) -> Result<Vec<u8>> {
+        info!("Downloading server.met from {}", url);
+
+        let resp_bytes = reqwest::get(url)
+            .await
+            .with_context(|| format!("GET request to {} failed", url))?
+            .bytes()
+            .await
+            .with_context(|| format!("Could not extract bytes from response from {}", url))?;
+
+        info!("Received {} bytes from {}", resp_bytes.len(), url);
+
+        Ok(resp_bytes[..].to_vec())
+    }
 }

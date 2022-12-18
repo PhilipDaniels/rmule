@@ -5,8 +5,28 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
+[ ] Connect to server
+[ ] Run a search
+[ ] Refactor into lib/rmuled/rmule
 [ ] Allow multiple temp dirs. To point to the same location
 [ ] Delete temp db if it becomes empty
+
+
+pub trait DbCollection {
+  load_all();
+  save_all();
+  delete_all();
+}
+
+pub trait DbRow {
+  insert();
+  update();
+  upsert();
+  delete();
+}
+
+
+
 
 [ ] Run as a daemon (PID file needed)
 [ ] Caching.
