@@ -7,8 +7,8 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
 use tracing::{info, warn};
 
-pub type ConfigurationCommandSender = mpsc::Sender<ConfigurationCommands>;
-pub type ConfigurationCommandReceiver = mpsc::Receiver<ConfigurationCommands>;
+pub type ConfigurationCommandSender = mpsc::Sender<ConfigurationCommand>;
+pub type ConfigurationCommandReceiver = mpsc::Receiver<ConfigurationCommand>;
 
 pub type ConfigurationEventSender = broadcast::Sender<ConfigurationEvents>;
 pub type ConfigurationEventReceiver = broadcast::Receiver<ConfigurationEvents>;
@@ -21,37 +21,59 @@ pub struct ConfigurationManagerHandle {
     /// The evt_sender is required so that callers can subscribe to events.
     /// It is not used to actually send any events. This is a bit strange.
     evt_sender: ConfigurationEventSender,
-    // TODO: Without this we cannot emit events.
+    // TODO: We need at least one receiver to be alive to
+    // allow us to send events.
     evt_receiver: ConfigurationEventReceiver,
 }
 
 impl ConfigurationManagerHandle {
-    pub async fn new(config_dir: &Path) -> Result<Self> {
-        let (cmd_sender, cmd_receiver) = mpsc::channel::<ConfigurationCommands>(32);
+    /// Starts the Configuration Manager as a Tokio task, however it does not do
+    /// anything until sent a Start command.
+    pub fn new(config_dir: &Path) -> Self {
+        let (cmd_sender, cmd_receiver) = mpsc::channel::<ConfigurationCommand>(32);
         let (evt_sender, evt_receiver) = broadcast::channel::<ConfigurationEvents>(32);
-        let evt_sender2 = evt_sender.clone();
-
-        let handle = ConfigurationManagerHandle {
-            cmd_sender,
-            evt_sender,
-            evt_receiver,
-        };
 
         // Construct a new ConfigurationManager to manage the connection
         // to the configuration database.
-        let mut mgr = ConfigurationManager::new(evt_sender2, cmd_receiver, config_dir);
-        mgr.load_all_configuration().await?;
+        let mut mgr = ConfigurationManager::new(evt_sender.clone(), cmd_receiver, config_dir);
 
-        // Spawn a new task to make the ConfigurationManager respond to events.
         tokio::task::Builder::new()
             .name("ConfigurationMgr")
-            .spawn(async move {
-                mgr.start().await.expect("Start never fails");
-            })?;
+            .spawn_blocking(move || mgr.run())
+            .expect("spawn_blocking of ConfigurationMgr failed");
 
-        Ok(handle)
+        ConfigurationManagerHandle {
+            cmd_sender,
+            evt_sender,
+            evt_receiver,
+        }
     }
 
+    pub async fn send_command(&self, cmd: ConfigurationCommand) -> Result<()> {
+        Ok(self.cmd_sender.send(cmd).await?)
+    }
+
+    /*
+        pub async fn new2(config_dir: &Path) -> Result<Self> {
+            let (cmd_sender, cmd_receiver) = mpsc::channel::<ConfigurationCommands>(32);
+            let (evt_sender, evt_receiver) = broadcast::channel::<ConfigurationEvents>(32);
+            let evt_sender2 = evt_sender.clone();
+
+            let handle = ConfigurationManagerHandle {
+                cmd_sender,
+                cmd_receiver,
+                evt_sender,
+                evt_receiver,
+            };
+
+            // Construct a new ConfigurationManager to manage the connection
+            // to the configuration database.
+            let mut mgr = ConfigurationManager::new(evt_sender2, cmd_receiver, config_dir);
+            mgr.load_all_configuration().await?;
+
+            Ok(handle)
+        }
+    */
     /// Create a new subscription to events sent by the Configuration Manager.
     pub fn subscribe_to_events(&self) -> ConfigurationEventReceiver {
         self.evt_sender.subscribe()
@@ -64,12 +86,15 @@ impl ConfigurationManagerHandle {
     }
 }
 
+/// The set of commands that can be sent to the Configuration Manager.
 #[derive(Debug, PartialEq, Eq)]
-pub enum ConfigurationCommands {
+pub enum ConfigurationCommand {
+    Start,
     UpdateServerList,
     Shutdown,
 }
 
+/// The set of events that can be emitted by the Configuration Manager.
 #[derive(Debug, Clone)]
 pub enum ConfigurationEvents {
     InitComplete,
@@ -83,7 +108,6 @@ pub struct ConfigurationManager {
     config_dir: PathBuf,
     events_sender: ConfigurationEventSender,
     commands_receiver: ConfigurationCommandReceiver,
-    config_db: Option<ConfigurationDb>,
 }
 
 impl ConfigurationManager {
@@ -99,8 +123,36 @@ impl ConfigurationManager {
             config_dir: config_dir.into(),
             events_sender,
             commands_receiver,
-            config_db: None,
         }
+    }
+
+    pub fn run(&mut self) {
+        //while let Some(cmd) = self.commands_receiver.recv() {}
+
+        // tokio::task::Builder::new()
+        //     .name("ConfigurationMgr")
+        //     .spawn_blocking(async move {
+        //         self.handle_message()
+        //             .await
+        //             .expect("start_cmd_loop never fails");
+        //     })
+        //     .unwrap();
+    }
+
+    /// Starts the ConfigurationManager loop. We wait for commands
+    /// and then execute them, emitting events as necessary.
+    pub async fn handle_message(&mut self) -> Result<()> {
+        while let Some(cmd) = self.commands_receiver.recv().await {
+            match cmd {
+                ConfigurationCommand::Start => self.load_all_configuration().await?,
+                ConfigurationCommand::UpdateServerList => todo!(),
+                ConfigurationCommand::Shutdown => {
+                    self.shutdown();
+                    break;
+                }
+            }
+        }
+        Ok(())
     }
 
     pub async fn load_all_configuration(&mut self) -> Result<()> {
@@ -129,7 +181,7 @@ impl ConfigurationManager {
         let temp_dirs = Arc::new(TempDirectoryList::load_all(&config_db)?);
 
         // Store this for later use.
-        self.config_db = Some(config_db);
+        //self.config_db = Some(config_db);
 
         // Notify everybody of loaded data.
         self.events_sender
@@ -144,18 +196,6 @@ impl ConfigurationManager {
         // Tell everybody we are done with initial load.
         self.events_sender.send(ConfigurationEvents::InitComplete)?;
 
-        Ok(())
-    }
-
-    /// Starts the ConfigurationManager loop. We wait for commands
-    /// and then execute them, emitting events as necessary.
-    pub async fn start(&mut self) -> Result<()> {
-        while let Some(cmd) = self.commands_receiver.recv().await {
-            if cmd == ConfigurationCommands::Shutdown {
-                self.shutdown();
-                break;
-            }
-        }
         Ok(())
     }
 

@@ -3,7 +3,7 @@
 
 use anyhow::{bail, Result};
 use rmule::{
-    file, get_default_config_dir, initialise_configuration_mgr, initialise_tokio_tracing,
+    file, get_default_config_dir, initialise_engine, initialise_tokio_tracing,
     inititalise_config_dir,
 };
 use single_instance::SingleInstance;
@@ -17,7 +17,7 @@ async fn main() -> Result<()> {
     info!("Starting {}", env!("CARGO_PKG_NAME"));
     let parsed_args = parse_args()?;
     inititalise_config_dir(&parsed_args.config_directory, parsed_args.reset_config)?;
-    let _cfg_mgr_handle = initialise_configuration_mgr(&parsed_args.config_directory).await?;
+    let _engine = initialise_engine(&parsed_args.config_directory).await?;
     info!("Closing {}", env!("CARGO_PKG_NAME"));
     Ok(())
 }

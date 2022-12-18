@@ -2,12 +2,14 @@
 #![forbid(unsafe_code)]
 
 mod configuration;
+mod engine;
 pub mod file;
 mod times;
 mod utils;
 
 use anyhow::{bail, Result};
-use configuration::{ConfigurationDb, ConfigurationManagerHandle};
+use configuration::ConfigurationDb;
+use engine::Engine;
 use std::path::{Path, PathBuf};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -57,9 +59,8 @@ pub fn inititalise_config_dir(config_dir: &Path, reset: bool) -> Result<()> {
     Ok(())
 }
 
-/// Creates a new configuration manager and returns the handle via
-/// which it can be sent messages.
-pub async fn initialise_configuration_mgr(config_dir: &Path) -> Result<ConfigurationManagerHandle> {
-    let cfg_mgr_handle = ConfigurationManagerHandle::new(config_dir).await?;
-    Ok(cfg_mgr_handle)
+/// Creates a new rMule Engine which is ready to respond to commands.
+pub async fn initialise_engine(config_dir: &Path) -> Result<Engine> {
+    let engine = Engine::new(config_dir);
+    Ok(engine)
 }

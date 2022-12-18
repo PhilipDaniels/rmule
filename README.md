@@ -22,7 +22,7 @@ Split
 [ ] Fix the exit code in parse_args
 
 
-
+[ ] Signal handling
 [ ] Connect to server
 [ ] Run a search
 [ ] Allow multiple temp dirs. To point to the same location
