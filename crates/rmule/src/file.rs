@@ -1,5 +1,6 @@
 use crate::times;
 use std::borrow::Cow;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Result};
@@ -54,6 +55,15 @@ pub fn ensure_writable(path: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Deletes a file. Does not error if the file does not exist.
+pub fn delete_file_if_exists(path: &Path) -> Result<()> {
+    match std::fs::remove_file(path) {
+        core::result::Result::Ok(_) => return Ok(()),
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e.into()),
+    }
 }
 
 /// Constructs a backup filename for an existing file by appending a

@@ -1,10 +1,10 @@
-use anyhow::Result;
+use super::migrations;
+use crate::file;
+use anyhow::{Ok, Result};
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use std::cell::{Ref, RefCell};
 use std::path::{Path, PathBuf};
 use tracing::info;
-
-use super::migrations;
 
 pub struct ConfigurationDb {
     pub config_dir: PathBuf,
@@ -50,8 +50,9 @@ impl ConfigurationDb {
     /// Deletes any out of date backups.
     pub fn backup(config_dir: &Path) -> Result<()> {
         let filename = Self::config_db_filename(config_dir);
+        let backup_config_file = crate::file::make_backup_filename(&filename);
+
         if filename.try_exists()? {
-            let backup_config_file = crate::file::make_backup_filename(&filename);
             std::fs::copy(filename, &backup_config_file)?;
             info!(
                 "Backed up config database to {}",
@@ -63,6 +64,11 @@ impl ConfigurationDb {
                 num_deleted,
                 Self::CONFIG_DB_NAME
             );
+        } else {
+            info!(
+                "The configuration file {} does not exist, so it cannot be backed up",
+                filename.to_string_lossy()
+            );
         }
 
         Ok(())
@@ -71,8 +77,7 @@ impl ConfigurationDb {
     /// Deletes the current configuration database.
     pub fn delete(config_dir: &Path) -> Result<()> {
         let filename = Self::config_db_filename(config_dir);
-        std::fs::remove_file(filename)?;
-        Ok(())
+        file::delete_file_if_exists(&filename)
     }
 
     fn config_db_filename<P: Into<PathBuf>>(config_dir: P) -> PathBuf {

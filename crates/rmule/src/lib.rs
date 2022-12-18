@@ -7,7 +7,8 @@ mod times;
 mod utils;
 
 use anyhow::{bail, Result};
-use std::path::PathBuf;
+use configuration::ConfigurationDb;
+use std::path::{Path, PathBuf};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
@@ -39,18 +40,24 @@ pub fn get_default_config_dir() -> Result<PathBuf> {
     Ok(cfg_dir)
 }
 
-pub fn inititalise() -> Result<()> {
+/// Initialises the configuration directory - simply we make sure it exists
+/// and optionally reset the configuration by deleting the database - a new
+/// default configuration db will be created at startup of the actor system.
+pub fn inititalise_config_dir(config_dir: &Path, reset: bool) -> Result<()> {
     // This creates the directory, but no files within it.
-    //file::ensure_directory_exists(&config_dir)?;
+    file::ensure_directory_exists(config_dir)?;
 
-    // if reset_config() {
-    //     ConfigurationDb::backup(&config_dir)?;
-    //     // Deleting is enough, because we create a
-    //     // new config db is one is not found.
-    //     ConfigurationDb::delete(&config_dir)?;
-    // }
+    if reset {
+        ConfigurationDb::backup(config_dir)?;
+        // Deleting is enough, because we create a
+        // new config db if one is not found.
+        ConfigurationDb::delete(config_dir)?;
+    }
 
+    Ok(())
+}
+
+pub fn initialise_actors() -> Result<()> {
     //let _cfg_mgr_handle = ConfigurationManagerHandle::new(&config_dir).await?;
-
     Ok(())
 }

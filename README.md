@@ -8,16 +8,12 @@ amule.cpp/364
 Split
 =====
 # rmule
-- provide a fn to init the tracing system
 - constructs the actor system
-- remove all argument parsing code
-- current code in main needs to be moved out or become "provider" functions
 
 # rmuled
 - has no code for now
 
 # rmulegui
-- links the lib into one exe
 - sends commands such as "init"
 - receives events such as "init complete"
 - move arg parsing code into here

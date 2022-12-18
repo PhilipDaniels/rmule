@@ -1,24 +1,25 @@
 use std::path::PathBuf;
 
 use anyhow::{bail, Result};
-use rmule::{file, get_default_config_dir, initialise_tokio_tracing};
+use rmule::{file, get_default_config_dir, initialise_tokio_tracing, inititalise_config_dir};
 use single_instance::SingleInstance;
 use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     initialise_tokio_tracing();
-    info!("STARTING {}", env!("CARGO_PKG_NAME"));
+    info!("Starting {}", env!("CARGO_PKG_NAME"));
     check_already_running()?;
     let parsed_args = parse_args()?;
-    info!("{} IS WAITING...", env!("CARGO_PKG_NAME"));
+    inititalise_config_dir(&parsed_args.config_directory, parsed_args.reset_config)?;
+    info!("{} is waiting...", env!("CARGO_PKG_NAME"));
     //std::thread::sleep(Duration::from_secs(2));
-    info!("CLOSING {}", env!("CARGO_PKG_NAME"));
+    info!("Closing {}", env!("CARGO_PKG_NAME"));
     Ok(())
 }
 
 fn check_already_running() -> Result<()> {
-    let instance = SingleInstance::new("rmule").unwrap();
+    let instance = SingleInstance::new(env!("CARGO_PKG_NAME")).unwrap();
     if !instance.is_single() {
         bail!("{} is already running, only one instance can run at a time to prevent corruption of file downloads",
         env!("CARGO_PKG_NAME"));
@@ -54,11 +55,11 @@ fn parse_args() -> Result<ParsedArgs> {
     if args.contains("--print-config-dir") {
         match file::directory_exists(&parsed_args.config_directory)? {
             true => println!(
-                "{} (exists)",
+                "config dir: {} (exists)",
                 parsed_args.config_directory.to_string_lossy()
             ),
             false => println!(
-                "{} (does not exist, will be created)",
+                "config dir:{} (does not exist, will be created)",
                 parsed_args.config_directory.to_string_lossy()
             ),
         };
