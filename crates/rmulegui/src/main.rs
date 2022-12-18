@@ -18,6 +18,7 @@ async fn main() -> Result<()> {
     let parsed_args = parse_args()?;
     inititalise_config_dir(&parsed_args.config_directory, parsed_args.reset_config)?;
     let _engine = initialise_engine(&parsed_args.config_directory).await?;
+    loop {}
     info!("Closing {}", env!("CARGO_PKG_NAME"));
     Ok(())
 }

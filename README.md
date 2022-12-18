@@ -8,7 +8,7 @@ amule.cpp/364
 Split
 =====
 # rmule
-- constructs the actor system
+- constructs the Engine
 
 # rmuled
 - has no code for now

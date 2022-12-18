@@ -128,7 +128,7 @@ impl AddressList {
             addresses.insert(&conn, a)?;
 
             let a = Address::new(
-                "hhttp://ed2k.2x4u.de/v1s4vbaf/max/server.met",
+                "http://ed2k.2x4u.de/v1s4vbaf/max/server.met",
                 "DEFAULT RMULE ADDRESS, Curated (All) from this site",
                 true,
             );

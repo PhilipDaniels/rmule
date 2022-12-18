@@ -1,5 +1,5 @@
 use super::{Address, AddressList, ConfigurationDb, ServerList, Settings, TempDirectoryList};
-use crate::configuration::parsing;
+use crate::configuration::parsing::{self, ParsedServer};
 use anyhow::{Context, Result};
 use futures::future::join_all;
 use std::path::{Path, PathBuf};
@@ -127,7 +127,12 @@ impl ConfigurationManager {
     }
 
     pub fn run(&mut self) {
-        //while let Some(cmd) = self.commands_receiver.recv() {}
+        while let Some(cmd) = self.commands_receiver.blocking_recv() {
+            let shutdown = self.handle_message(cmd).unwrap();
+            if shutdown {
+                break;
+            }
+        }
 
         // tokio::task::Builder::new()
         //     .name("ConfigurationMgr")
@@ -141,21 +146,21 @@ impl ConfigurationManager {
 
     /// Starts the ConfigurationManager loop. We wait for commands
     /// and then execute them, emitting events as necessary.
-    pub async fn handle_message(&mut self) -> Result<()> {
-        while let Some(cmd) = self.commands_receiver.recv().await {
-            match cmd {
-                ConfigurationCommand::Start => self.load_all_configuration().await?,
-                ConfigurationCommand::UpdateServerList => todo!(),
-                ConfigurationCommand::Shutdown => {
-                    self.shutdown();
-                    break;
-                }
+    pub fn handle_message(&mut self, cmd: ConfigurationCommand) -> Result<bool> {
+        let mut shutdown = false;
+        match cmd {
+            ConfigurationCommand::Start => self.load_all_configuration()?,
+            ConfigurationCommand::UpdateServerList => todo!(),
+            ConfigurationCommand::Shutdown => {
+                self.shutdown();
+                shutdown = true;
             }
         }
-        Ok(())
+
+        Ok(shutdown)
     }
 
-    pub async fn load_all_configuration(&mut self) -> Result<()> {
+    pub fn load_all_configuration(&mut self) -> Result<()> {
         let config_db = ConfigurationDb::open(&self.config_dir)?;
 
         let settings = Arc::new(Settings::load(&config_db)?);
@@ -171,8 +176,7 @@ impl ConfigurationManager {
                 warn!("Cannot auto-update server list due to empty address table");
                 Arc::new(ServerList::load_all(&config_db)?)
             } else {
-                self.auto_update_server_list(&config_db, &active_addresses)
-                    .await?
+                self.auto_update_server_list(&config_db, &active_addresses)?
             }
         } else {
             Arc::new(ServerList::load_all(&config_db)?)
@@ -201,7 +205,7 @@ impl ConfigurationManager {
 
     fn shutdown(&mut self) {}
 
-    async fn auto_update_server_list(
+    fn auto_update_server_list(
         &self,
         config_db: &ConfigurationDb,
         addresses: &[&Address],
@@ -226,8 +230,12 @@ impl ConfigurationManager {
             }));
         }
 
-        let results = join_all(tasks).await;
-        let mut all_parsed_servers: Vec<_> = results
+        // TODO: PR to document this!
+        // Run some async code on the current runtime.
+        let rt = tokio::runtime::Handle::current();
+        let all_download_results = rt.block_on(join_all(tasks));
+
+        let mut all_parsed_servers: Vec<_> = all_download_results
             .into_iter()
             .filter_map(Result::ok)
             .flatten()
