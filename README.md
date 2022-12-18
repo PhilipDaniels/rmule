@@ -16,12 +16,12 @@ Split
 # rmulegui
 - sends commands such as "init"
 - receives events such as "init complete"
-- move arg parsing code into here
-  - will eventually need to add code to specify rmuled's  ip:port
+- will eventually need to add arg to specify rmuled's  ip:port
 - gui DOES require single instance, but can have multiple windows
 [ ] Fix the exit code in parse_args
 
 
+[ ] Say how many servers from each address
 [ ] Signal handling
 [ ] Connect to server
 [ ] Run a search

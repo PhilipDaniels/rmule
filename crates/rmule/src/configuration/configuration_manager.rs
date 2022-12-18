@@ -37,6 +37,9 @@ impl ConfigurationManagerHandle {
         // to the configuration database.
         let mut mgr = ConfigurationManager::new(evt_sender.clone(), cmd_receiver, config_dir);
 
+        // Move the mgr onto its own blocking thread. See tokio docs
+        // on spawn_blocking. SQLite is non-async, so any work it does
+        // is blocking work.
         tokio::task::Builder::new()
             .name("ConfigurationMgr")
             .spawn_blocking(move || mgr.run())
@@ -49,31 +52,11 @@ impl ConfigurationManagerHandle {
         }
     }
 
+    /// Sends a command to the ConfigurationManager.
     pub async fn send_command(&self, cmd: ConfigurationCommand) -> Result<()> {
         Ok(self.cmd_sender.send(cmd).await?)
     }
 
-    /*
-        pub async fn new2(config_dir: &Path) -> Result<Self> {
-            let (cmd_sender, cmd_receiver) = mpsc::channel::<ConfigurationCommands>(32);
-            let (evt_sender, evt_receiver) = broadcast::channel::<ConfigurationEvents>(32);
-            let evt_sender2 = evt_sender.clone();
-
-            let handle = ConfigurationManagerHandle {
-                cmd_sender,
-                cmd_receiver,
-                evt_sender,
-                evt_receiver,
-            };
-
-            // Construct a new ConfigurationManager to manage the connection
-            // to the configuration database.
-            let mut mgr = ConfigurationManager::new(evt_sender2, cmd_receiver, config_dir);
-            mgr.load_all_configuration().await?;
-
-            Ok(handle)
-        }
-    */
     /// Create a new subscription to events sent by the Configuration Manager.
     pub fn subscribe_to_events(&self) -> ConfigurationEventReceiver {
         self.evt_sender.subscribe()
@@ -89,6 +72,10 @@ impl ConfigurationManagerHandle {
 /// The set of commands that can be sent to the Configuration Manager.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ConfigurationCommand {
+    /// Starts the Configuration Manager. This will cause it to open
+    /// or create the configuration database and load the data. Any
+    /// automatic options such as updating the server list will be
+    /// applied.
     Start,
     UpdateServerList,
     Shutdown,
@@ -104,14 +91,15 @@ pub enum ConfigurationEvents {
     ServerListChange(Arc<ServerList>),
 }
 
-pub struct ConfigurationManager {
+/// This is private to the module: all access is via the handle.
+struct ConfigurationManager {
     config_dir: PathBuf,
     events_sender: ConfigurationEventSender,
     commands_receiver: ConfigurationCommandReceiver,
 }
 
 impl ConfigurationManager {
-    pub fn new<P>(
+    fn new<P>(
         events_sender: ConfigurationEventSender,
         commands_receiver: ConfigurationCommandReceiver,
         config_dir: P,
@@ -126,27 +114,18 @@ impl ConfigurationManager {
         }
     }
 
-    pub fn run(&mut self) {
+    fn run(&mut self) {
         while let Some(cmd) = self.commands_receiver.blocking_recv() {
             let shutdown = self.handle_message(cmd).unwrap();
             if shutdown {
                 break;
             }
         }
-
-        // tokio::task::Builder::new()
-        //     .name("ConfigurationMgr")
-        //     .spawn_blocking(async move {
-        //         self.handle_message()
-        //             .await
-        //             .expect("start_cmd_loop never fails");
-        //     })
-        //     .unwrap();
     }
 
     /// Starts the ConfigurationManager loop. We wait for commands
     /// and then execute them, emitting events as necessary.
-    pub fn handle_message(&mut self, cmd: ConfigurationCommand) -> Result<bool> {
+    fn handle_message(&mut self, cmd: ConfigurationCommand) -> Result<bool> {
         let mut shutdown = false;
         match cmd {
             ConfigurationCommand::Start => self.load_all_configuration()?,
@@ -160,7 +139,7 @@ impl ConfigurationManager {
         Ok(shutdown)
     }
 
-    pub fn load_all_configuration(&mut self) -> Result<()> {
+    fn load_all_configuration(&mut self) -> Result<()> {
         let config_db = ConfigurationDb::open(&self.config_dir)?;
 
         let settings = Arc::new(Settings::load(&config_db)?);
@@ -224,7 +203,7 @@ impl ConfigurationManager {
                 // should not stop rMule from running because we got some bad data
                 // from the internet.
                 match Self::download_server_met(&url).await {
-                    Ok(resp) => parsing::parse_servers(&url, &resp).unwrap_or_else(|_| Vec::new()),
+                    Ok(parsed_servers) => parsed_servers,
                     Err(_) => Vec::new(),
                 }
             }));
@@ -250,7 +229,7 @@ impl ConfigurationManager {
         Ok(Arc::new(current_servers))
     }
 
-    async fn download_server_met(url: &str) -> Result<Vec<u8>> {
+    async fn download_server_met(url: &str) -> Result<Vec<ParsedServer>> {
         info!("Downloading server.met from {}", url);
 
         let resp_bytes = reqwest::get(url)
@@ -260,8 +239,25 @@ impl ConfigurationManager {
             .await
             .with_context(|| format!("Could not extract bytes from response from {}", url))?;
 
-        info!("Received {} bytes from {}", resp_bytes.len(), url);
+        let servers = if resp_bytes.is_empty() {
+            Vec::new()
+        } else {
+            match parsing::parse_servers(&url, &resp_bytes) {
+                Ok(parsed_servers) => parsed_servers,
+                Err(e) => {
+                    warn!("{}", e);
+                    Vec::new()
+                }
+            }
+        };
 
-        Ok(resp_bytes[..].to_vec())
+        info!(
+            "Received {} bytes and {} servers from {}",
+            resp_bytes.len(),
+            servers.len(),
+            url
+        );
+
+        Ok(servers)
     }
 }

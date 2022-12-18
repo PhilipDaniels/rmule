@@ -16,6 +16,10 @@ impl StringExtensions for &str {
         let mut v = Vec::new();
 
         for s in self.split(',') {
+            if s.trim().is_empty() {
+                continue;
+            }
+
             match s.parse() {
                 Ok(n) => v.push(n),
                 Err(_) => bail!("{s} cannot be converted to the specified type"),

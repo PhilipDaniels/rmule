@@ -30,6 +30,9 @@ use crate::configuration::{ConfigurationCommand, ConfigurationManagerHandle};
 /// [this blog post by Alice Ryhl](https://ryhl.io/blog/actors-with-tokio/),
 /// a Tokio maintainer, which may be helpful in explaining why the handles
 /// are structured as they are.
+///
+/// As a point of design, the XyzManager types are not visible outside
+/// their modules: all access is via the corresponding XyzManagerHandle.
 pub struct Engine {
     config_dir: PathBuf,
     cfg_mgr_handle: ConfigurationManagerHandle,
@@ -46,6 +49,8 @@ impl Engine {
         }
     }
 
+    /// Starts the Engine. This starts all the individual components
+    /// in the actor system in the correct order.
     pub async fn start(&self) {
         self.cfg_mgr_handle
             .send_command(ConfigurationCommand::Start)
