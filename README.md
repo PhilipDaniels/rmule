@@ -5,9 +5,30 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
+Split
+=====
+# rmule
+- provide a fn to init the tracing system
+- constructs the actor system
+- remove all argument parsing code
+- current code in main needs to be moved out or become "provider" functions
+
+# rmuled
+- has no code for now
+
+# rmulegui
+- links the lib into one exe
+- sends commands such as "init"
+- receives events such as "init complete"
+- move arg parsing code into here
+  - will eventually need to add code to specify rmuled's  ip:port
+- gui DOES require single instance, but can have multiple windows
+[ ] Fix the exit code in parse_args
+
+
+
 [ ] Connect to server
 [ ] Run a search
-[ ] Refactor into lib/rmuled/rmule
 [ ] Allow multiple temp dirs. To point to the same location
 [ ] Delete temp db if it becomes empty
 
@@ -26,6 +47,7 @@ pub trait DbRow {
 }
 
 
+#[rustfmt::skip]
 
 
 [ ] Run as a daemon (PID file needed)
