@@ -1,4 +1,3 @@
-use super::ConfigurationDb;
 use crate::times;
 use anyhow::Result;
 use rusqlite::{params, Connection, Row, Statement};

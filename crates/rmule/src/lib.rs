@@ -8,7 +8,7 @@ mod times;
 mod utils;
 
 use anyhow::{bail, Result};
-use configuration::ConfigurationDb;
+use configuration::ConfigurationManager;
 use engine::Engine;
 use std::path::{Path, PathBuf};
 use tracing::Level;
@@ -50,10 +50,10 @@ pub fn inititalise_config_dir(config_dir: &Path, reset: bool) -> Result<()> {
     file::ensure_directory_exists(config_dir)?;
 
     if reset {
-        ConfigurationDb::backup(config_dir)?;
+        ConfigurationManager::backup(config_dir)?;
         // Deleting is enough, because we create a
         // new config db if one is not found.
-        ConfigurationDb::delete(config_dir)?;
+        ConfigurationManager::delete(config_dir)?;
     }
 
     Ok(())

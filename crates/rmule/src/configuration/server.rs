@@ -1,5 +1,5 @@
 use super::parsing::ParsedServer;
-use super::{ConfigurationDb, IpAddr};
+use super::IpAddr;
 use crate::times;
 use crate::utils::{SliceExtensions, StringExtensions};
 use anyhow::{bail, Result};
@@ -83,8 +83,7 @@ pub struct Server {
 
 impl ServerList {
     /// Loads all the servers from the configuration database.
-    pub fn load_all(db: &ConfigurationDb) -> Result<Self> {
-        let conn = db.conn();
+    pub fn load_all(conn: &Connection) -> Result<Self> {
         let mut stmt = conn.prepare("SELECT * FROM server")?;
 
         let mut servers = Vec::new();
@@ -118,8 +117,7 @@ impl ServerList {
         info!("Updated {num_updated} existing servers, inserted {num_inserted} new ones");
     }
 
-    pub fn save_all(&mut self, db: &ConfigurationDb) -> Result<()> {
-        let conn = db.conn();
+    pub fn save_all(&mut self, conn: &Connection) -> Result<()> {
         let mut insert_stmt = conn.prepare(
             r#"INSERT INTO server
                   (

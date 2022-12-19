@@ -1,7 +1,11 @@
-use super::{Address, AddressList, ConfigurationDb, ServerList, Settings, TempDirectoryList};
+use super::{Address, AddressList, ServerList, Settings, TempDirectoryList};
+use crate::configuration::migrations;
 use crate::configuration::parsing::{self, ParsedServer};
+use crate::file;
 use anyhow::{Context, Result};
 use futures::future::join_all;
+use rusqlite::{Connection, Transaction, TransactionBehavior};
+use std::cell::{Ref, RefCell};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
@@ -35,7 +39,8 @@ impl ConfigurationManagerHandle {
 
         // Construct a new ConfigurationManager to manage the connection
         // to the configuration database.
-        let mut mgr = ConfigurationManager::new(evt_sender.clone(), cmd_receiver, config_dir);
+        let mut mgr =
+            ConfigurationManager::new(evt_sender.clone(), cmd_receiver, config_dir).expect("s");
 
         // Move the mgr onto its own blocking thread. See tokio docs
         // on spawn_blocking. SQLite is non-async, so any work it does
@@ -95,26 +100,127 @@ pub enum ConfigurationEvents {
 }
 
 /// This is private to the module: all access is via the handle.
-struct ConfigurationManager {
+pub struct ConfigurationManager {
     config_dir: PathBuf,
+    config_db_filename: PathBuf,
     events_sender: ConfigurationEventSender,
     commands_receiver: ConfigurationCommandReceiver,
+    conn: RefCell<Connection>,
+    // Then the data.
+    settings: Settings,
+    addresses: AddressList,
+    servers: ServerList,
+    temp_dirs: TempDirectoryList,
 }
 
 impl ConfigurationManager {
+    const CONFIG_DB_NAME: &str = "rmule_config.sqlite";
+
+    /// Backs up the current configuration database.
+    /// Deletes any out of date backups.
+    pub fn backup(config_dir: &Path) -> Result<()> {
+        let filename = Self::config_db_filename(config_dir);
+        let backup_config_file = crate::file::make_backup_filename(&filename);
+
+        if filename.try_exists()? {
+            std::fs::copy(filename, &backup_config_file)?;
+            info!(
+                "Backed up config database to {}",
+                backup_config_file.to_string_lossy()
+            );
+            let num_deleted = crate::file::delete_backups(config_dir, Self::CONFIG_DB_NAME, 10)?;
+            info!(
+                "Deleted {} backups of {}",
+                num_deleted,
+                Self::CONFIG_DB_NAME
+            );
+        } else {
+            info!(
+                "The configuration file {} does not exist, so it cannot be backed up",
+                filename.to_string_lossy()
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Deletes the current configuration database.
+    pub fn delete(config_dir: &Path) -> Result<()> {
+        let filename = Self::config_db_filename(config_dir);
+        file::delete_file_if_exists(&filename)
+    }
+
     fn new<P>(
         events_sender: ConfigurationEventSender,
         commands_receiver: ConfigurationCommandReceiver,
         config_dir: P,
-    ) -> Self
+    ) -> Result<Self>
     where
         P: Into<PathBuf>,
     {
-        Self {
-            config_dir: config_dir.into(),
+        let config_dir = config_dir.into();
+        let config_db_filename = Self::config_db_filename(&config_dir);
+
+        info!(
+            "Attempting to open configuration database {}",
+            config_db_filename.display()
+        );
+
+        // This will create an empty SQLite db if needed.
+        let conn = Connection::open(&config_db_filename)?;
+        migrations::apply_database_migrations(&conn)?;
+
+        info!(
+            "Opened configuration database {}",
+            config_db_filename.display()
+        );
+
+        let settings = Settings::load(&conn)?;
+        let addresses = AddressList::load_all(&conn)?;
+        let servers = ServerList::load_all(&conn)?;
+        let temp_dirs = TempDirectoryList::load_all(&conn)?;
+
+        let cfg_mgr = Self {
+            config_dir,
+            config_db_filename,
             events_sender,
             commands_receiver,
-        }
+            conn: RefCell::new(conn),
+            settings,
+            addresses,
+            servers,
+            temp_dirs,
+        };
+
+        Ok(cfg_mgr)
+    }
+
+    fn config_db_filename<P: Into<PathBuf>>(config_dir: P) -> PathBuf {
+        let mut p = config_dir.into();
+        p.push(Self::CONFIG_DB_NAME);
+        p
+    }
+
+    /// Get the connection. Most ops can be performed on
+    /// a shared connection.
+    pub fn conn(&self) -> Ref<Connection> {
+        self.conn.borrow()
+    }
+
+    /// Executes a transaction on this database.
+    /// See [https://docs.rs/rusqlite/latest/rusqlite/struct.Transaction.html]
+    pub fn execute_in_transaction<T, F>(
+        &self,
+        behaviour: TransactionBehavior,
+        block: F,
+    ) -> Result<T>
+    where
+        F: FnOnce(Transaction) -> Result<T>,
+    {
+        let mut conn = self.conn.borrow_mut();
+        let txn = Transaction::new(&mut conn, behaviour)?;
+        let result = block(txn)?;
+        Ok(result)
     }
 
     fn run(&mut self) {
@@ -131,7 +237,7 @@ impl ConfigurationManager {
     fn handle_message(&mut self, cmd: ConfigurationCommand) -> Result<bool> {
         let mut shutdown = false;
         match cmd {
-            ConfigurationCommand::Start => self.load_all_configuration()?,
+            ConfigurationCommand::Start => self.start()?,
             ConfigurationCommand::UpdateServerList => todo!(),
             ConfigurationCommand::Stop => {
                 self.stop();
@@ -142,70 +248,66 @@ impl ConfigurationManager {
         Ok(shutdown)
     }
 
-    fn load_all_configuration(&mut self) -> Result<()> {
-        let config_db = ConfigurationDb::open(&self.config_dir)?;
-        let conn = config_db.conn();
-
-        let settings = Arc::new(Settings::load(&conn)?);
-        let address_list = Arc::new(AddressList::load_all(&conn)?);
-
-        let servers = if settings.auto_update_server_list {
-            let active_addresses: Vec<_> = address_list
+    /// Starts the Configuration Manager. Everything is already loaded as
+    /// that was done in `new`.
+    fn start(&mut self) -> Result<()> {
+        if self.settings.auto_update_server_list {
+            let active_addresses: Vec<_> = self
+                .addresses
                 .iter()
-                .filter(|addr| addr.active == true)
+                .filter_map(|addr| {
+                    if addr.active {
+                        Some(addr.url.clone())
+                    } else {
+                        None
+                    }
+                })
                 .collect();
 
             if active_addresses.is_empty() {
                 warn!("Cannot auto-update server list due to empty address table");
-                Arc::new(ServerList::load_all(&config_db)?)
             } else {
-                self.auto_update_server_list(&config_db, &active_addresses)?
+                self.auto_update_server_list(&active_addresses)?;
             }
-        } else {
-            Arc::new(ServerList::load_all(&config_db)?)
-        };
-
-        let temp_dirs = Arc::new(TempDirectoryList::load_all(&config_db)?);
-
-        // Store this for later use.
-        //self.config_db = Some(config_db);
+        }
 
         // Notify everybody of loaded data.
-        self.events_sender
-            .send(ConfigurationEvents::SettingsChange(settings))?;
-        self.events_sender
-            .send(ConfigurationEvents::AddressListChange(address_list))?;
-        self.events_sender
-            .send(ConfigurationEvents::TempDirectoryListChange(temp_dirs))?;
-        self.events_sender
-            .send(ConfigurationEvents::ServerListChange(servers))?;
+        // self.events_sender
+        //     .send(ConfigurationEvents::SettingsChange(settings))?;
+        // self.events_sender
+        //     .send(ConfigurationEvents::AddressListChange(address_list))?;
+        // self.events_sender
+        //     .send(ConfigurationEvents::TempDirectoryListChange(temp_dirs))?;
+        // self.events_sender
+        //     .send(ConfigurationEvents::ServerListChange(servers))?;
 
-        // Tell everybody we are done with initial load.
-        self.events_sender.send(ConfigurationEvents::InitComplete)?;
+        // // Tell everybody we are done with initial load.
+        // self.events_sender.send(ConfigurationEvents::InitComplete)?;
 
         Ok(())
     }
 
     fn stop(&mut self) {}
 
-    fn auto_update_server_list(
-        &self,
-        config_db: &ConfigurationDb,
-        addresses: &[&Address],
-    ) -> Result<Arc<ServerList>> {
-        info!("Auto-updating server list");
+    fn auto_update_server_list(&mut self, addresses: &Vec<String>) -> Result<()> {
+        let download_servers = Self::download_servers(addresses)?;
+        self.servers.merge_parsed_servers(&download_servers);
+        let conn = self.conn.borrow();
+        self.servers.save_all(&conn)?;
+        Ok(())
+    }
 
-        let mut current_servers = ServerList::load_all(config_db)?;
-
+    fn download_servers(urls: &Vec<String>) -> Result<Vec<ParsedServer>> {
+        info!("Downloading new servers");
         let mut tasks = Vec::new();
 
-        for addr in addresses {
-            let url = addr.url.clone();
+        for url in urls {
+            let url = url.clone();
             tasks.push(tokio::spawn(async move {
                 // If an eror occurs during download or parsing, do not abort the
-                // program. Updating the server list is an "optional extra" and we
-                // should not stop rMule from running because we got some bad data
-                // from the internet.
+                // program. Updating the server list is an "optional extra" and
+                // we should not stop rMule from running because we got some
+                // bad data from the internet.
                 match Self::download_server_met(&url).await {
                     Ok(parsed_servers) => parsed_servers,
                     Err(_) => Vec::new(),
@@ -227,10 +329,7 @@ impl ConfigurationManager {
         all_parsed_servers.sort_by(|a, b| a.ip_addr.cmp(&b.ip_addr));
         all_parsed_servers.dedup_by(|a, b| a.ip_addr == b.ip_addr);
         info!("Retrieved {} unique servers", all_parsed_servers.len());
-
-        current_servers.merge_parsed_servers(&all_parsed_servers);
-        ServerList::save_all(&mut current_servers, config_db)?;
-        Ok(Arc::new(current_servers))
+        Ok(all_parsed_servers)
     }
 
     async fn download_server_met(url: &str) -> Result<Vec<ParsedServer>> {

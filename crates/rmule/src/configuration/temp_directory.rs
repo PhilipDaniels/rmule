@@ -1,7 +1,7 @@
-use super::{ConfigurationDb, PathBuf};
+use super::PathBuf;
 use crate::times;
 use anyhow::Result;
-use rusqlite::{params, Row};
+use rusqlite::{params, Connection, Row};
 use std::path::Path;
 use time::OffsetDateTime;
 use tracing::info;
@@ -40,8 +40,7 @@ impl TryFrom<&Row<'_>> for TempDirectory {
 
 impl TempDirectoryList {
     /// Load all temporary directories from the database.
-    pub fn load_all(db: &ConfigurationDb) -> Result<Self> {
-        let conn = db.conn();
+    pub fn load_all(conn: &Connection) -> Result<Self> {
         let mut stmt = conn.prepare("SELECT * FROM temp_directory")?;
 
         let mut directories: Vec<TempDirectory> = stmt
@@ -56,7 +55,7 @@ impl TempDirectoryList {
                 "No rows found in temp_directory table, creating a default at {}",
                 temp_dir_pb.to_string_lossy()
             );
-            let new_temp_dir = Self::insert(db, &temp_dir_pb).unwrap();
+            let new_temp_dir = Self::insert(conn, &temp_dir_pb).unwrap();
             directories.push(new_temp_dir);
         }
 
@@ -67,8 +66,7 @@ impl TempDirectoryList {
 
     /// Inserts a new temp directory. Returns a value with the id field
     /// correctly set from the database.
-    pub fn insert(db: &ConfigurationDb, path: &Path) -> Result<TempDirectory> {
-        let conn = db.conn();
+    pub fn insert(conn: &Connection, path: &Path) -> Result<TempDirectory> {
         let mut stmt = conn.prepare(
             r#"INSERT INTO temp_directory(created, updated, directory) VALUES (?1, ?2, ?3);"#,
         )?;
