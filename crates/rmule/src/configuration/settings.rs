@@ -1,7 +1,7 @@
-use super::{ConfigurationDb, PathBuf};
+use super::PathBuf;
 use crate::times;
 use anyhow::Result;
-use rusqlite::{params, Row};
+use rusqlite::{params, Connection, Row};
 use time::OffsetDateTime;
 use tracing::info;
 
@@ -36,8 +36,7 @@ impl TryFrom<&Row<'_>> for Settings {
 
 impl Settings {
     /// Loads the settings from the database.
-    pub fn load(db: &ConfigurationDb) -> Result<Self> {
-        let conn = db.conn();
+    pub fn load(conn: &Connection) -> Result<Self> {
         let mut stmt = conn.prepare("SELECT * FROM settings")?;
         let mut rows = stmt.query([])?;
 
@@ -55,14 +54,14 @@ impl Settings {
                 auto_update_server_list: true,
             };
 
-            default_settings.insert(db)?;
+            default_settings.insert(conn)?;
             Ok(default_settings)
         }
     }
 
     /// Updates existing settings in the database.
-    pub fn update(&self, db: &ConfigurationDb) -> Result<()> {
-        db.conn().execute(
+    pub fn update(&self, conn: &Connection) -> Result<()> {
+        conn.execute(
             r#"UPDATE settings SET
                 nick_name = ?1,
                 default_downloads_directory = ?2,
@@ -81,8 +80,8 @@ impl Settings {
         Ok(())
     }
 
-    pub fn insert(&self, db: &ConfigurationDb) -> Result<()> {
-        db.conn().execute(
+    pub fn insert(&self, conn: &Connection) -> Result<()> {
+        conn.execute(
             r#"INSERT INTO settings(created, updated, nick_name, default_downloads_directory, auto_update_server_list)
                 VALUES(?1, ?2, ?3, ?4, ?5);
             "#,

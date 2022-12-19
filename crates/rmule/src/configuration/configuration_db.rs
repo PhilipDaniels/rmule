@@ -1,15 +1,18 @@
-use super::migrations;
+use super::{migrations, AddressList, Settings};
 use crate::file;
 use anyhow::{Ok, Result};
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use std::cell::{Ref, RefCell};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tracing::info;
 
 pub struct ConfigurationDb {
     pub config_dir: PathBuf,
     config_db_filename: PathBuf,
     conn: RefCell<Connection>,
+    settings: Option<Arc<Settings>>,
+    address_list: Option<Arc<AddressList>>,
 }
 
 impl ConfigurationDb {
@@ -41,6 +44,8 @@ impl ConfigurationDb {
             config_dir: config_dir.to_owned(),
             config_db_filename: filename,
             conn: RefCell::new(conn),
+            settings: None,
+            address_list: None,
         };
 
         Ok(cfg)
@@ -84,6 +89,18 @@ impl ConfigurationDb {
         let mut p = config_dir.into();
         p.push(Self::CONFIG_DB_NAME);
         p
+    }
+
+    fn load_settings(&mut self) -> Result<()> {
+        let settings = { Arc::new(Settings::load(&self.conn())?) };
+        self.settings = Some(settings);
+        Ok(())
+    }
+
+    fn load_addresses(&mut self) -> Result<()> {
+        let address_list = { Arc::new(AddressList::load_all(&self.conn())?) };
+        self.address_list = Some(address_list);
+        Ok(())
     }
 
     /// Get the connection. Most ops can be performed on

@@ -55,8 +55,7 @@ impl Address {
 
 impl AddressList {
     /// Load all addresses from the database.
-    pub fn load_all(db: &ConfigurationDb) -> Result<Self> {
-        let conn = db.conn();
+    pub fn load_all(conn: &Connection) -> Result<Self> {
         let mut stmt = conn.prepare("SELECT * FROM address")?;
 
         let addresses: Vec<_> = stmt

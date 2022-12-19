@@ -77,8 +77,11 @@ pub enum ConfigurationCommand {
     /// automatic options such as updating the server list will be
     /// applied.
     Start,
+    /// Stops the Configuration Manager. This will cause a complete
+    /// stop of the program.
+    Stop,
+    /// Commands the Configuration Manager to update it server list.
     UpdateServerList,
-    Shutdown,
 }
 
 /// The set of events that can be emitted by the Configuration Manager.
@@ -130,8 +133,8 @@ impl ConfigurationManager {
         match cmd {
             ConfigurationCommand::Start => self.load_all_configuration()?,
             ConfigurationCommand::UpdateServerList => todo!(),
-            ConfigurationCommand::Shutdown => {
-                self.shutdown();
+            ConfigurationCommand::Stop => {
+                self.stop();
                 shutdown = true;
             }
         }
@@ -141,9 +144,10 @@ impl ConfigurationManager {
 
     fn load_all_configuration(&mut self) -> Result<()> {
         let config_db = ConfigurationDb::open(&self.config_dir)?;
+        let conn = config_db.conn();
 
-        let settings = Arc::new(Settings::load(&config_db)?);
-        let address_list = Arc::new(AddressList::load_all(&config_db)?);
+        let settings = Arc::new(Settings::load(&conn)?);
+        let address_list = Arc::new(AddressList::load_all(&conn)?);
 
         let servers = if settings.auto_update_server_list {
             let active_addresses: Vec<_> = address_list
@@ -182,7 +186,7 @@ impl ConfigurationManager {
         Ok(())
     }
 
-    fn shutdown(&mut self) {}
+    fn stop(&mut self) {}
 
     fn auto_update_server_list(
         &self,
