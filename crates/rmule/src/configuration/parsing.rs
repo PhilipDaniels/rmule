@@ -71,7 +71,7 @@ fn parse_server(url: &str, input: &mut Cursor<&[u8]>) -> Result<ParsedServer> {
     // it comes out right.
     let ip_addr = input
         .read_u32::<BigEndian>()
-        .with_context(|| format!("{url:} Could not read IP address"))?;
+        .with_context(|| format!("{url} Could not read IP address"))?;
 
     let port = input
         .read_u16::<LittleEndian>()

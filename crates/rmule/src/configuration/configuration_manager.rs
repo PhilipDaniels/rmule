@@ -1,4 +1,4 @@
-use super::{Address, AddressList, ServerList, Settings, TempDirectoryList};
+use super::{AddressList, ServerList, Settings, TempDirectoryList};
 use crate::configuration::migrations;
 use crate::configuration::parsing::{self, ParsedServer};
 use crate::file;
