@@ -25,6 +25,10 @@ Split
     [ ] Created a pooled connection type which can be used as a param
         so that a connection can be passed in, but generated if None
         is passed - enables connection reuse.
+
+
+[ ] Say how many servers from each address
+[ ] Place a timeout on server downloads.
 [ ] Signal handling
 [ ] Connect to server
 [ ] Run a search
