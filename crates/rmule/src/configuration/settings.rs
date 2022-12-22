@@ -9,7 +9,6 @@ use tracing::info;
 pub struct Settings {
     pub created: OffsetDateTime,
     pub updated: OffsetDateTime,
-
     /// Name we are known by on the ed2k network.
     pub nick_name: String,
     /// Default downloads directory to be used if not set on the TempDirectory

@@ -18,8 +18,11 @@ pub struct Address {
     pub created: OffsetDateTime,
     pub updated: OffsetDateTime,
     pub id: i64,
+    // URL from which to fetch server.met files.
     pub url: String,
+    // Short description of the address.
     pub description: String,
+    // Logical delete flag.
     pub active: bool,
 }
 

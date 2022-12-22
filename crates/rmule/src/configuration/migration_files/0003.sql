@@ -1,4 +1,5 @@
 -- Create the temp_directory table.
+
 -- This is the rmule equivalent of the "temp directory" setting from emule.
 -- rmule supports multiple temp directories, which can help with
 -- spreading disk IO across multiple devices, in case you don't have a
@@ -8,6 +9,7 @@ CREATE TABLE temp_directory
     id INTEGER PRIMARY KEY,
     created TEXT NOT NULL,
     updated TEXT NOT NULL,
+    -- Directory in which the temp database will be stored. Natural key of the table.
     directory TEXT NOT NULL UNIQUE
     );
 

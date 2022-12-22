@@ -21,6 +21,7 @@ pub struct TempDirectory {
     created: OffsetDateTime,
     updated: OffsetDateTime,
     id: i64,
+    // Directory in which the temp database will be stored. Natural key of the table.
     directory: PathBuf,
 }
 

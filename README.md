@@ -21,7 +21,6 @@ Split
 [ ] Fix the exit code in parse_args
 
 
-[ ] Say how many servers from each address
 [ ] Signal handling
 [ ] Connect to server
 [ ] Run a search
