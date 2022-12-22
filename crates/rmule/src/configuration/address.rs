@@ -56,6 +56,31 @@ impl Address {
 }
 
 impl AddressList {
+    /// Inserts a reasonable set of default addresses.
+    pub fn insert_default_addresses(&mut self, conn: &Connection) -> Result<()> {
+        #[rustfmt::skip]
+        const DEFAULT_ADDRESSES: [(&str, &str); 9] = [
+            ("http://www.gruk.org/server.met.gz", "DEFAULT RMULE ADDRESS"),
+            ("http://peerates.net/server.met", "DEFAULT RMULE ADDRESS)"),
+            ("http://shortypower.dyndns.org/server.met", "DEFAULT RMULE ADDRESS"),
+            ("http://www.server-met.de/dl.php?load=gz", "DEFAULT RMULE ADDRESS, Curated (best) from this site"),
+            ("http://www.server-met.de/dl.php?load=min", "DEFAULT RMULE ADDRESS, Curated (medium) from this site"),
+            ("http://www.server-met.de/dl.php?load=max", "DEFAULT ARMULE DDRESS, Curated (All) from this site"),
+            ("http://ed2k.2x4u.de/v1s4vbaf/micro/server.met", "DEFAULT RMULE ADDRESS, Curated (Connect List) from this site"),
+            ("http://ed2k.2x4u.de/v1s4vbaf/min/server.met", "DEFAULT RMULE ADDRESS, Curated (Best) from this site"),
+            ("http://ed2k.2x4u.de/v1s4vbaf/max/server.met", "DEFAULT RMULE ADDRESS, Curated (All) from this site"),
+        ];
+
+        info!("Inserting reasonable default addresses (as of Dec 2022)");
+
+        for addr in DEFAULT_ADDRESSES.iter() {
+            let a = Address::new(addr.0, addr.1, true);
+            self.insert(&conn, a)?;
+        }
+
+        Ok(())
+    }
+
     /// Load all addresses from the database.
     pub fn load_all(conn: &Connection) -> Result<Self> {
         let mut stmt = conn.prepare("SELECT * FROM address")?;
@@ -65,77 +90,7 @@ impl AddressList {
             .flatten()
             .collect();
 
-        let mut addresses = Self { addresses };
-
-        if addresses.is_empty() {
-            info!("No addresses found, populating reasonable defaults (as of Dec 2022)");
-
-            let a = Address::new(
-                "http://www.gruk.org/server.met.gz",
-                "DEFAULT RMULE ADDRESS",
-                true,
-            );
-            addresses.insert(&conn, a)?;
-
-            let a = Address::new(
-                "http://peerates.net/server.met",
-                "DEFAULT RMULE ADDRESS",
-                true,
-            );
-            addresses.insert(&conn, a)?;
-
-            let a = Address::new(
-                "http://shortypower.dyndns.org/server.met",
-                "DEFAULT RMULE ADDRESS",
-                true,
-            );
-            addresses.insert(&conn, a)?;
-
-            // 3 files from http://www.server-met.de
-            let a = Address::new(
-                "http://www.server-met.de/dl.php?load=gz",
-                "DEFAULT RMULE ADDRESS, Curated (best) from this site",
-                true,
-            );
-            addresses.insert(&conn, a)?;
-
-            let a = Address::new(
-                "http://www.server-met.de/dl.php?load=min",
-                "DEFAULT RMULE ADDRESS, Curated (medium) from this site",
-                true,
-            );
-            addresses.insert(&conn, a)?;
-
-            let a = Address::new(
-                "http://www.server-met.de/dl.php?load=max",
-                "DEFAULT ARMULE DDRESS, Curated (All) from this site",
-                true,
-            );
-            addresses.insert(&conn, a)?;
-
-            // 3 files from http://ed2k.2x4u.de/index.html
-            let a = Address::new(
-                "http://ed2k.2x4u.de/v1s4vbaf/micro/server.met",
-                "DEFAULT RMULE ADDRESS, Curated (Connect List) from this site",
-                true,
-            );
-            addresses.insert(&conn, a)?;
-
-            let a = Address::new(
-                "http://ed2k.2x4u.de/v1s4vbaf/min/server.met",
-                "DEFAULT RMULE ADDRESS, Curated (Best) from this site",
-                true,
-            );
-            addresses.insert(&conn, a)?;
-
-            let a = Address::new(
-                "http://ed2k.2x4u.de/v1s4vbaf/max/server.met",
-                "DEFAULT RMULE ADDRESS, Curated (All) from this site",
-                true,
-            );
-            addresses.insert(&conn, a)?;
-        }
-
+        let addresses = Self { addresses };
         info!("Loaded {} rows from address", addresses.len());
         Ok(addresses)
     }

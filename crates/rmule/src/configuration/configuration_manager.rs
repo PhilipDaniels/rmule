@@ -251,6 +251,11 @@ impl ConfigurationManager {
     /// Starts the Configuration Manager. Everything is already loaded as
     /// that was done in `new`.
     fn start(&mut self) -> Result<()> {
+        if self.addresses.is_empty() {
+            self.addresses
+                .insert_default_addresses(&self.conn.borrow())?;
+        }
+
         if self.settings.auto_update_server_list {
             let active_addresses: Vec<_> = self
                 .addresses
