@@ -44,7 +44,7 @@ impl Engine {
         let cfg_mgr_handle = ConfigurationManagerHandle::new(&config_dir);
 
         Self {
-            config_dir: config_dir.into(),
+            config_dir,
             cfg_mgr_handle,
         }
     }

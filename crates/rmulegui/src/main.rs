@@ -8,6 +8,7 @@ use rmule::{
 };
 use single_instance::SingleInstance;
 use std::path::PathBuf;
+use std::time::Duration;
 use tracing::info;
 
 #[tokio::main]
@@ -19,7 +20,9 @@ async fn main() -> Result<()> {
     inititalise_config_dir(&parsed_args.config_directory, parsed_args.reset_config)?;
     let engine = initialise_engine(&parsed_args.config_directory).await?;
     engine.start().await;
-    loop {}
+    loop {
+        std::thread::sleep(Duration::from_secs(5));
+    }
     info!("Closing {}", env!("CARGO_PKG_NAME"));
     Ok(())
 }

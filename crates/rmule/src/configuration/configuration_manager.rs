@@ -367,7 +367,7 @@ impl ConfigurationManager {
         let servers = if resp_bytes.is_empty() {
             Vec::new()
         } else {
-            match parsing::parse_servers(&url, &resp_bytes) {
+            match parsing::parse_servers(url, &resp_bytes) {
                 Ok(parsed_servers) => parsed_servers,
                 Err(e) => {
                     warn!("{}", e);

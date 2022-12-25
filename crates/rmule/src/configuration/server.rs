@@ -175,7 +175,7 @@ impl ServerList {
             if server.id == 0 {
                 server.created = now;
                 server.updated = now;
-                let id = Self::insert_server(&conn, &mut insert_stmt, server)?;
+                let id = Self::insert_server(conn, &mut insert_stmt, server)?;
                 server.id = id;
             } else {
                 server.updated = now;

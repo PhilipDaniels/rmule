@@ -7,7 +7,7 @@ use super::sqlite_extensions::ConnectionExtensions;
 /// Applies all necessary database migrations to bring the database up to date.
 pub fn apply_database_migrations(conn: &Connection) -> Result<()> {
     let db_version = match conn.table_exists("version") {
-        Ok(_) => get_database_version(conn)? as usize,
+        Ok(_) => get_database_version(conn)?,
         Err(_) => 0,
     };
 

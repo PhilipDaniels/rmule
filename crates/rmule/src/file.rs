@@ -60,9 +60,9 @@ pub fn ensure_writable(path: &Path) -> Result<()> {
 /// Deletes a file. Does not error if the file does not exist.
 pub fn delete_file_if_exists(path: &Path) -> Result<()> {
     match std::fs::remove_file(path) {
-        core::result::Result::Ok(_) => return Ok(()),
-        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(()),
-        Err(e) => return Err(e.into()),
+        core::result::Result::Ok(_) => Ok(()),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e.into()),
     }
 }
 

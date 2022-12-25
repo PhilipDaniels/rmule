@@ -75,7 +75,7 @@ impl AddressList {
 
         for addr in DEFAULT_ADDRESSES.iter() {
             let a = Address::new(addr.0, addr.1, true);
-            self.insert(&conn, a)?;
+            self.insert(conn, a)?;
         }
 
         Ok(())
@@ -131,7 +131,7 @@ impl AddressList {
             address.active
         ];
 
-        let mut stmt = Self::insert_stmt(&conn)?;
+        let mut stmt = Self::insert_stmt(conn)?;
         stmt.execute(params)?;
         address.id = conn.last_insert_rowid();
         info!(
@@ -153,7 +153,7 @@ impl AddressList {
             address.id
         ];
 
-        let mut stmt = Self::update_stmt(&conn)?;
+        let mut stmt = Self::update_stmt(conn)?;
         stmt.execute(params)?;
 
         info!("Updated address {} with url of {}", address.id, address.url);
