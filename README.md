@@ -5,6 +5,20 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
+[ ] Fix the exit code in parse_args
+[ ] Consider using r2d2-sqlite for connection pooling. Remove the
+    stored connection in the ConfigurationManager.
+    [ ] Created a pooled connection type which can be used as a param
+        so that a connection can be passed in, but generated if None
+        is passed - enables connection reuse.
+[ ] Signal handling
+[ ] Connect to server
+[ ] Run a search
+[ ] Allow multiple temp dirs. To point to the same location
+[ ] Delete temp db if it becomes empty
+
+
+
 Split
 =====
 # rmule
@@ -18,22 +32,7 @@ Split
 - receives events such as "init complete"
 - will eventually need to add arg to specify rmuled's  ip:port
 - gui DOES require single instance, but can have multiple windows
-[ ] Fix the exit code in parse_args
 
-[ ] Consider using r2d2-sqlite for connection pooling. Remove the
-    stored connection in the ConfigurationManager.
-    [ ] Created a pooled connection type which can be used as a param
-        so that a connection can be passed in, but generated if None
-        is passed - enables connection reuse.
-
-
-[ ] Say how many servers from each address
-[ ] Place a timeout on server downloads.
-[ ] Signal handling
-[ ] Connect to server
-[ ] Run a search
-[ ] Allow multiple temp dirs. To point to the same location
-[ ] Delete temp db if it becomes empty
 
 
 pub trait DbCollection {

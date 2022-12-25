@@ -4,10 +4,12 @@ use crate::configuration::parsing::{self, ParsedServer};
 use crate::file;
 use anyhow::{Context, Result};
 use futures::future::join_all;
+use reqwest::Client;
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use std::cell::{Ref, RefCell};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tracing::{info, warn};
 
@@ -306,16 +308,27 @@ impl ConfigurationManager {
         info!("Downloading new servers");
         let mut tasks = Vec::new();
 
+        let client = reqwest::ClientBuilder::new()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .with_context(|| "Creating a reqwest client to download server.met failed")?;
+
         for url in urls {
             let url = url.clone();
+            // Cloning the client is cheap, it uses Arc internally.
+            let client = client.clone();
+
             tasks.push(tokio::spawn(async move {
                 // If an eror occurs during download or parsing, do not abort the
                 // program. Updating the server list is an "optional extra" and
                 // we should not stop rMule from running because we got some
                 // bad data from the internet.
-                match Self::download_server_met(&url).await {
+                match Self::download_server_met(&client, &url).await {
                     Ok(parsed_servers) => parsed_servers,
-                    Err(_) => Vec::new(),
+                    Err(e) => {
+                        warn!("{}", e);
+                        Vec::new()
+                    }
                 }
             }));
         }
@@ -333,19 +346,23 @@ impl ConfigurationManager {
 
         all_parsed_servers.sort_by(|a, b| a.ip_addr.cmp(&b.ip_addr));
         all_parsed_servers.dedup_by(|a, b| a.ip_addr == b.ip_addr);
+
         info!("Retrieved {} unique servers", all_parsed_servers.len());
+
         Ok(all_parsed_servers)
     }
 
-    async fn download_server_met(url: &str) -> Result<Vec<ParsedServer>> {
+    async fn download_server_met(client: &Client, url: &str) -> Result<Vec<ParsedServer>> {
         info!("Downloading server.met from {}", url);
 
-        let resp_bytes = reqwest::get(url)
+        let resp_bytes = client
+            .get(url)
+            .send()
             .await
-            .with_context(|| format!("GET request to {} failed", url))?
+            .with_context(|| format!("Timeout occurred fetching server.met from {url}"))?
             .bytes()
             .await
-            .with_context(|| format!("Could not extract bytes from response from {}", url))?;
+            .with_context(|| format!("Could not extract bytes from response from {url}"))?;
 
         let servers = if resp_bytes.is_empty() {
             Vec::new()
