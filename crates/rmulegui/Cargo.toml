@@ -10,3 +10,4 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 pico-args = "0.5"
 single-instance = "0.3"
+eframe = "0.20"
