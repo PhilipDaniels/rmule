@@ -59,7 +59,8 @@ impl AddressList {
     /// Inserts a reasonable set of default addresses.
     pub fn insert_default_addresses(&mut self, conn: &Connection) -> Result<()> {
         #[rustfmt::skip]
-        const DEFAULT_ADDRESSES: [(&str, &str); 9] = [
+        const DEFAULT_ADDRESSES: [(&str, &str); 10] = [
+            ("http://upd.emule-security.org/server.met", "DEFAULT RMULE ADDRESS"),
             ("http://www.gruk.org/server.met.gz", "DEFAULT RMULE ADDRESS"),
             ("http://peerates.net/server.met", "DEFAULT RMULE ADDRESS)"),
             ("http://shortypower.dyndns.org/server.met", "DEFAULT RMULE ADDRESS"),
