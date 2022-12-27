@@ -5,6 +5,12 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
+[ ] UI
+  [ ] Light mode styling
+  [ ] Toolbar across the top
+  [ ] Display the log
+  [ ] Display a list of servers
+
 [ ] Fix the exit code in parse_args
 [ ] Consider using r2d2-sqlite for connection pooling. Remove the
     stored connection in the ConfigurationManager.
@@ -75,10 +81,12 @@ pub trait DbRow {
 - [tracing](https://crates.io/crates/tracing), a.k.a. "tokio-tracing", is used for instrumentation.
 - [anyhow](https://crates.io/crates/anyhow) is used for error handling (really error type *conversion*) throughout.
 - [pico-args](https://crates.io/crates/pico-args) is used to parse the command line arguments. They're simple, and there is no need for something as heavyweight as [clap](https://crates.io/crates/clap).
-
+- [egui](https://crates.io/crates/egui) and [eframe](https://crates.io/crates/eframe) are used for the UI.
+- 
 
 rMule avoids bringing in crates where possible. For example, I don't use
-[diesel](https://crates.io/crates/diesel) for SQL access, and rMule has its own database migration system in less than 100 lines of code.
+[diesel](https://crates.io/crates/diesel) for SQL access, and rMule has its own database
+migration system in less than 100 lines of code.
 
 
 https://crates.io/crates/tokio-console

@@ -9,7 +9,7 @@ mod utils;
 
 use anyhow::{bail, Result};
 use configuration::ConfigurationManager;
-use engine::Engine;
+pub use engine::Engine;
 use std::path::{Path, PathBuf};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
