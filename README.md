@@ -16,7 +16,12 @@ amule.cpp/364
 [ ] Run a search
 [ ] Allow multiple temp dirs. To point to the same location
 [ ] Delete temp db if it becomes empty
-
+[ ] Run as a daemon (PID file needed)
+[ ] Caching.
+  [ ] X minutes.
+  [ ] If an entire file arrives without needing flushing to db we can write the whole
+      thing to the destination without needing to write to db first.
+  [ ] Allow files to be held for preview without actually writing them out to disk first
 
 
 Split
@@ -52,11 +57,7 @@ pub trait DbRow {
 #[rustfmt::skip]
 
 
-[ ] Run as a daemon (PID file needed)
-[ ] Caching.
-  [ ] X minutes.
-  [ ] If an entire file arrives without needing flushing to db we can write the whole
-      thing to the destination without needing to write to db first.
+
 
 # Timeline
 1. Do not commence network calls until all init is complete.
