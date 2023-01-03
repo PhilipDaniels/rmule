@@ -5,11 +5,21 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
+[ ] egui notes
+  - shape.rs: PathShape and Shape: used to create polygons. See eg Shape::convex_polygon() and
+    visual_bounding_rect().
+  - style.rs: see Style struct. visuals is colors. spacing is Spacing...
+  - painter.rs: used for actually drawing. See in particular fade_to_color "used for grayed
+    out interfaces". It also has some primitive painting functions.
+  - ui.rs: has an set_enabled() function.
 [ ] UI
   [ ] Light mode styling
   [ ] Toolbar across the top
   [ ] Display the log
   [ ] Display a list of servers
+
+
+
 
 [ ] Fix the exit code in parse_args
 [ ] Consider using r2d2-sqlite for connection pooling. Remove the

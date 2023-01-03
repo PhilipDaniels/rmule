@@ -11,7 +11,7 @@ pub struct ToolbarButton {
 }
 
 impl ToolbarButton {
-    pub fn new(text: impl Into<WidgetText>) -> Self {
+    pub fn new<S: Into<WidgetText>>(text: S) -> Self {
         Self {
             text: text.into(),
             image: None,
@@ -19,6 +19,10 @@ impl ToolbarButton {
     }
 }
 
+// enabled
+// mouse pressed
+// focus rectange
+// image
 impl Widget for ToolbarButton {
     fn ui(self, ui: &mut eframe::egui::Ui) -> Response {
         let button_padding = ui.spacing().button_padding;
@@ -28,7 +32,7 @@ impl Widget for ToolbarButton {
             .into_galley(ui, Some(false), text_wrap_width, TextStyle::Button);
         let mut desired_size = text.size();
         desired_size += 2.0 * button_padding;
-        desired_size = desired_size.at_least(Vec2::new(40.0, 40.0));
+        desired_size = desired_size.at_least(Vec2::new(80.0, 40.0));
 
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, text.text()));
