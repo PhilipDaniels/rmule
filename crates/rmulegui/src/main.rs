@@ -16,11 +16,18 @@ mod widgets;
 #[tokio::main]
 async fn main() -> Result<()> {
     check_already_running()?;
+
+    // The handle can be cloned and passed into other
+    // threads, we will need this to spawn async tasks
+    // from non-tokio threads, such as those which are
+    // running dedicated actors.
+    let tokio_handle = tokio::runtime::Handle::current();
+
     initialise_tokio_tracing();
     info!("Starting {}", env!("CARGO_PKG_NAME"));
     let parsed_args = parse_args()?;
     inititalise_config_dir(&parsed_args.config_directory, parsed_args.reset_config)?;
-    let engine = initialise_engine(&parsed_args.config_directory).await?;
+    let engine = initialise_engine(&parsed_args.config_directory, tokio_handle).await?;
     engine.start().await;
     ui::start_ui(engine);
     info!("Closing {}", env!("CARGO_PKG_NAME"));

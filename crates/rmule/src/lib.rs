@@ -61,7 +61,10 @@ pub fn inititalise_config_dir(config_dir: &Path, reset: bool) -> Result<()> {
 
 /// Creates a new rMule Engine. The engine is not yet running,
 /// it must be started before it will respond to commands.
-pub async fn initialise_engine(config_dir: &Path) -> Result<Engine> {
-    let engine = Engine::new(config_dir);
+pub async fn initialise_engine(
+    config_dir: &Path,
+    tokio_handle: tokio::runtime::Handle,
+) -> Result<Engine> {
+    let engine = Engine::new(config_dir, tokio_handle);
     Ok(engine)
 }

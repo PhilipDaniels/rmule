@@ -12,6 +12,10 @@ pub fn start_ui(engine: Engine) {
         ..Default::default()
     };
 
+    let h = engine.configuration_manager_handle();
+    let receiver = h.subscribe_to_events();
+    //while receiver.recv().await {}
+
     eframe::run_native(
         "rMule",
         options,

@@ -35,21 +35,21 @@ pub struct ConfigurationManagerHandle {
 impl ConfigurationManagerHandle {
     /// Starts the Configuration Manager as a Tokio task, however it does not do
     /// anything until sent a Start command.
-    pub fn new(config_dir: &Path) -> Self {
+    pub fn new(config_dir: &Path, tokio_handle: tokio::runtime::Handle) -> Self {
         let (cmd_sender, cmd_receiver) = mpsc::channel::<ConfigurationCommand>(32);
         let (evt_sender, evt_receiver) = broadcast::channel::<ConfigurationEvents>(32);
 
-        // Construct a new ConfigurationManager to manage the connection
-        // to the configuration database.
         let mut mgr =
-            ConfigurationManager::new(evt_sender.clone(), cmd_receiver, config_dir).expect("s");
+            ConfigurationManager::new(evt_sender.clone(), cmd_receiver, config_dir, tokio_handle)
+                .expect("s");
 
-        // Move the mgr onto its own blocking thread. See tokio docs
-        // on spawn_blocking. SQLite is non-async, so any work it does
-        // is blocking work.
-        tokio::task::Builder::new()
-            .name("ConfigurationMgr")
-            .spawn_blocking(move || mgr.run())
+        // Move the mgr onto its own blocking thread. For actors that will
+        // perform blocking operations, we should use std::thread rather than
+        // tokio::spawn_blocking to avoid exhausting/deadlocking tokio.
+        // SQLite is non-async, so any work it does is blocking work.
+        std::thread::Builder::new()
+            .name("ConfigurationMgr".to_owned())
+            .spawn(move || mgr.run())
             .expect("spawn_blocking of ConfigurationMgr failed");
 
         ConfigurationManagerHandle {
@@ -103,6 +103,8 @@ pub enum ConfigurationEvents {
 
 /// This is private to the module: all access is via the handle.
 pub struct ConfigurationManager {
+    // The tokio_handle allows us to spawn tasks onto the Tokio runtime.
+    tokio_handle: tokio::runtime::Handle,
     config_dir: PathBuf,
     config_db_filename: PathBuf,
     events_sender: ConfigurationEventSender,
@@ -156,6 +158,7 @@ impl ConfigurationManager {
         events_sender: ConfigurationEventSender,
         commands_receiver: ConfigurationCommandReceiver,
         config_dir: P,
+        tokio_handle: tokio::runtime::Handle,
     ) -> Result<Self>
     where
         P: Into<PathBuf>,
@@ -183,6 +186,7 @@ impl ConfigurationManager {
         let temp_dirs = TempDirectoryList::load_all(&conn)?;
 
         let cfg_mgr = Self {
+            tokio_handle,
             config_dir,
             config_db_filename,
             events_sender,
@@ -297,14 +301,14 @@ impl ConfigurationManager {
     fn stop(&mut self) {}
 
     fn auto_update_server_list(&mut self, addresses: &Vec<String>) -> Result<()> {
-        let download_servers = Self::download_servers(addresses)?;
+        let download_servers = self.download_servers(addresses)?;
         self.servers.merge_parsed_servers(&download_servers);
         let conn = self.conn.borrow();
         self.servers.save_all(&conn)?;
         Ok(())
     }
 
-    fn download_servers(urls: &Vec<String>) -> Result<Vec<ParsedServer>> {
+    fn download_servers(&self, urls: &Vec<String>) -> Result<Vec<ParsedServer>> {
         info!("Downloading new servers");
         let mut tasks = Vec::new();
 
@@ -318,7 +322,7 @@ impl ConfigurationManager {
             // Cloning the client is cheap, it uses Arc internally.
             let client = client.clone();
 
-            tasks.push(tokio::spawn(async move {
+            tasks.push(self.tokio_handle.spawn(async move {
                 // If an eror occurs during download or parsing, do not abort the
                 // program. Updating the server list is an "optional extra" and
                 // we should not stop rMule from running because we got some
@@ -333,10 +337,7 @@ impl ConfigurationManager {
             }));
         }
 
-        // TODO: PR to document this!
-        // Run some async code on the current runtime.
-        let rt = tokio::runtime::Handle::current();
-        let all_download_results = rt.block_on(join_all(tasks));
+        let all_download_results = self.tokio_handle.block_on(join_all(tasks));
 
         let mut all_parsed_servers: Vec<_> = all_download_results
             .into_iter()

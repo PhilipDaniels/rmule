@@ -39,9 +39,9 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new<P: Into<PathBuf>>(config_dir: P) -> Self {
+    pub fn new<P: Into<PathBuf>>(config_dir: P, tokio_handle: tokio::runtime::Handle) -> Self {
         let config_dir = config_dir.into();
-        let cfg_mgr_handle = ConfigurationManagerHandle::new(&config_dir);
+        let cfg_mgr_handle = ConfigurationManagerHandle::new(&config_dir, tokio_handle);
 
         Self {
             config_dir,
@@ -56,5 +56,10 @@ impl Engine {
             .send_command(ConfigurationCommand::Start)
             .await
             .unwrap();
+    }
+
+    /// Returns a reference to the Configuration Manager handle.
+    pub fn configuration_manager_handle(&self) -> &ConfigurationManagerHandle {
+        &self.cfg_mgr_handle
     }
 }
