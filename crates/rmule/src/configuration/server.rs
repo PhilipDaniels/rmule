@@ -30,12 +30,12 @@ pub struct Server {
     /// disable servers without removing them from the list and losing them.
     active: bool,
     /// The IP Address of the server.
-    ip_addr: IpAddr,
+    pub ip_addr: IpAddr,
     /// The port through which rMule will connect to the server.
     /// See also aux_ports_list.
-    port: u16,
+    pub port: u16,
     /// The friendly name of the server, e.g. "eMule Sunrise".
-    name: Option<String>,
+    pub name: Option<String>,
     /// Short description of the server.
     description: Option<String>,
     /// The number of users currently registered on the server.

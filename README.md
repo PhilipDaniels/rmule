@@ -18,6 +18,9 @@ amule.cpp/364
   [ ] Display the log
   [ ] Display a list of servers
 
+[ ] UI 2
+  [ ] How to stop "Server Name" from wrapping in grid header
+  [ ] For each From<X> Into WidgetText, add an Option<> blanket impl.
 
 
 
