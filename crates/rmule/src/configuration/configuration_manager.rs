@@ -41,7 +41,7 @@ impl ConfigurationManagerHandle {
 
         let mut mgr =
             ConfigurationManager::new(evt_sender.clone(), cmd_receiver, config_dir, tokio_handle)
-                .expect("s");
+                .expect("Could not create the Configuration Manager");
 
         // Move the mgr onto its own blocking thread. For actors that will
         // perform blocking operations, we should use std::thread rather than
@@ -59,9 +59,14 @@ impl ConfigurationManagerHandle {
         }
     }
 
-    /// Sends a command to the ConfigurationManager.
+    /// Sends a command to the Configuration Manager.
     pub async fn send_command(&self, cmd: ConfigurationCommand) -> Result<()> {
         Ok(self.cmd_sender.send(cmd).await?)
+    }
+
+    /// Synchronously send a command to the Configuration Manager.
+    pub fn send_command_blocking(&self, cmd: ConfigurationCommand) -> Result<()> {
+        Ok(self.cmd_sender.blocking_send(cmd)?)
     }
 
     /// Create a new subscription to events sent by the Configuration Manager.
@@ -154,6 +159,8 @@ impl ConfigurationManager {
         file::delete_file_if_exists(&filename)
     }
 
+    /// Constructs a new Configuration Manager and loads the default
+    /// data from the database.
     fn new<P>(
         events_sender: ConfigurationEventSender,
         commands_receiver: ConfigurationCommandReceiver,

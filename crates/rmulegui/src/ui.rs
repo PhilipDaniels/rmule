@@ -1,20 +1,19 @@
 use eframe::{egui, Theme};
 use egui_extras::{Column, TableBuilder};
+use rmule::configuration::ConfigurationEventReceiver;
 use rmule::Engine;
 use tracing::info;
 
 use crate::widgets::toolbar_button::ToolbarButton;
 
-pub fn start_ui(engine: Engine) {
+pub fn show_main_window(engine: Engine) {
     let options = eframe::NativeOptions {
         //initial_window_size: Some(vec2(320.0, 240.0)),
         default_theme: Theme::Light,
         ..Default::default()
     };
 
-    let h = engine.configuration_manager_handle();
-    let receiver = h.subscribe_to_events();
-    //while receiver.recv().await {}
+    //engine.start().await;
 
     eframe::run_native(
         "rMule",
@@ -30,16 +29,22 @@ enum CurrentTab {
     // Log,
 }
 
+/// TheApp represents the data structures necessary to support the UI.
+/// It holds the Engine, which contains the "heart" of the program.
 struct TheApp {
     engine: Engine,
+    cfg_mgr_receiver: ConfigurationEventReceiver,
     current_tab: CurrentTab,
     servers: Vec<rmule::configuration::Server>,
 }
 
 impl TheApp {
     fn new(engine: Engine) -> Self {
+        let cfg_mgr_receiver = engine.configuration_manager_handle().subscribe_to_events();
+
         Self {
             engine,
+            cfg_mgr_receiver,
             current_tab: CurrentTab::Networks,
             servers: Vec::new(),
         }
@@ -59,7 +64,12 @@ impl TheApp {
                     info!("Downloads");
                 }
                 if ui.add(ToolbarButton::new("Log")).clicked() {
-                    info!("Log");
+                    // TODO: This is just temporary.
+                    self.engine
+                        .configuration_manager_handle()
+                        .send_command_blocking(rmule::configuration::ConfigurationCommand::Start)
+                        .unwrap();
+                    info!("Starting");
                 }
             });
         });
@@ -114,10 +124,18 @@ impl TheApp {
                 });
         });
     }
+
+    fn receive_engine_events(&mut self) {
+        if let Ok(evt) = self.cfg_mgr_receiver.try_recv() {
+            info!("Got an event!")
+        }
+    }
 }
 
 impl eframe::App for TheApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.receive_engine_events();
+
         self.toolbar(ctx);
 
         match &self.current_tab {

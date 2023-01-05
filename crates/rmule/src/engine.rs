@@ -41,6 +41,8 @@ pub struct Engine {
 impl Engine {
     pub fn new<P: Into<PathBuf>>(config_dir: P, tokio_handle: tokio::runtime::Handle) -> Self {
         let config_dir = config_dir.into();
+
+        // TODO: This will start emitting log events, but not Actor events.
         let cfg_mgr_handle = ConfigurationManagerHandle::new(&config_dir, tokio_handle);
 
         Self {
@@ -50,7 +52,8 @@ impl Engine {
     }
 
     /// Starts the Engine. This starts all the individual components
-    /// in the actor system in the correct order.
+    /// in the actor system in the correct order. Some actors start to
+    /// emit events immediately.
     pub async fn start(&self) {
         self.cfg_mgr_handle
             .send_command(ConfigurationCommand::Start)

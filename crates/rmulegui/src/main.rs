@@ -3,33 +3,49 @@
 
 use anyhow::{bail, Result};
 use rmule::{
-    file, get_default_config_dir, initialise_engine, initialise_tokio_tracing,
-    inititalise_config_dir,
+    create_engine, file, get_default_config_dir, initialise_tokio_tracing, inititalise_config_dir,
 };
 use single_instance::SingleInstance;
 use std::path::PathBuf;
+use std::time::Duration;
+use tokio::runtime::Runtime;
 use tracing::info;
 
 mod ui;
 mod widgets;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     check_already_running()?;
+    let parsed_args = parse_args()?;
+
+    let rt = Runtime::new().expect("Unable to create Tokio Runtime");
 
     // The handle can be cloned and passed into other
     // threads, we will need this to spawn async tasks
     // from non-tokio threads, such as those which are
     // running dedicated actors.
-    let tokio_handle = tokio::runtime::Handle::current();
+    let tokio_handle = rt.handle().clone();
+
+    // Execute the runtime in its own thread, thus reserving the
+    // main thread for egui.
+    // The future doesn't have to do anything.
+    std::thread::spawn(move || {
+        rt.block_on(async {
+            loop {
+                tokio::time::sleep(Duration::from_secs(3600)).await;
+            }
+        })
+    });
 
     initialise_tokio_tracing();
+
     info!("Starting {}", env!("CARGO_PKG_NAME"));
-    let parsed_args = parse_args()?;
+
     inititalise_config_dir(&parsed_args.config_directory, parsed_args.reset_config)?;
-    let engine = initialise_engine(&parsed_args.config_directory, tokio_handle).await?;
-    engine.start().await;
-    ui::start_ui(engine);
+
+    let engine = create_engine(&parsed_args.config_directory, tokio_handle)?;
+    ui::show_main_window(engine);
+
     info!("Closing {}", env!("CARGO_PKG_NAME"));
     Ok(())
 }
