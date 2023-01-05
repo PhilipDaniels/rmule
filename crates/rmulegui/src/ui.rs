@@ -69,7 +69,7 @@ impl TheApp {
                         .configuration_manager_handle()
                         .send_command_blocking(rmule::configuration::ConfigurationCommand::Start)
                         .unwrap();
-                    info!("Starting");
+                    info!("Starting PRESSED");
                 }
             });
         });
@@ -127,7 +127,16 @@ impl TheApp {
 
     fn receive_engine_events(&mut self) {
         if let Ok(evt) = self.cfg_mgr_receiver.try_recv() {
-            info!("Got an event!")
+            use rmule::configuration::ConfigurationEvents::*;
+
+            match evt {
+                InitComplete => info!("Got InitComplete"),
+                SettingsChange(settings) => info!("Got settings"),
+                AddressListChange(addr_list) => info!("Got addr list"),
+                TempDirectoryListChange(temp_dir_list) => info!("Got temp dir list"),
+                ServerListChange(server_list) => self.servers = server_list.into_iter().collect(),
+            }
+            info!("Got an event!!!!!")
         }
     }
 }

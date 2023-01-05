@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, Row, Statement, ToSql};
 use time::OffsetDateTime;
 use tracing::info;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ServerList {
     servers: Vec<Server>,
 }
@@ -18,7 +18,7 @@ pub struct ServerList {
 /// are mandatory to establish a connection to a server, however most of
 /// the other fields are usually provided in a server.met file.
 /// See http://wiki.amule.org/t/index.php?title=Server.met_file
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Server {
     created: OffsetDateTime,
     updated: OffsetDateTime,
@@ -114,7 +114,7 @@ impl ServerList {
             }
         }
 
-        info!("Updated {num_updated} existing servers, inserted {num_inserted} new ones");
+        info!("Updated {num_updated} existing servers, created {num_inserted} new ones (RAM only)");
     }
 
     pub fn save_all(&mut self, conn: &Connection) -> Result<()> {
@@ -169,6 +169,9 @@ impl ServerList {
                 id = ?26;"#,
         )?;
 
+        let mut num_updated = 0;
+        let mut num_inserted = 0;
+
         for server in &mut self.servers {
             let now = times::now();
 
@@ -177,11 +180,15 @@ impl ServerList {
                 server.updated = now;
                 let id = Self::insert_server(conn, &mut insert_stmt, server)?;
                 server.id = id;
+                num_inserted += 1;
             } else {
                 server.updated = now;
                 Self::update_server(&mut update_stmt, server)?;
+                num_updated += 1;
             }
         }
+
+        info!("Updated {num_updated} and inserted {num_inserted} rows to the servers table");
 
         Ok(())
     }

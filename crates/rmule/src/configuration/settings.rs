@@ -5,7 +5,7 @@ use rusqlite::{params, Connection, Row};
 use time::OffsetDateTime;
 use tracing::info;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Settings {
     pub created: OffsetDateTime,
     pub updated: OffsetDateTime,

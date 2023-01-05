@@ -7,13 +7,13 @@ use tracing::{info, warn};
 /// The rmule equivalent of addresses.dat from emule.
 /// This is a list of addresses from which server.met files
 /// can be downloaded.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AddressList {
     addresses: Vec<Address>,
 }
 
 /// An address from which a server.met file can be downloaded.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Address {
     pub created: OffsetDateTime,
     pub updated: OffsetDateTime,

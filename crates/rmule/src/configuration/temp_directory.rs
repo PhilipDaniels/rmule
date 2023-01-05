@@ -11,12 +11,12 @@ use tracing::info;
 /// spreading disk IO across multiple devices, in case you don't have a
 /// RAID array. They must be unique though, there is no point in having
 /// multiple temp directories pointing to the same physical directory.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TempDirectoryList {
     directories: Vec<TempDirectory>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TempDirectory {
     created: OffsetDateTime,
     updated: OffsetDateTime,

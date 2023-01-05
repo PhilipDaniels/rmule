@@ -22,7 +22,8 @@ amule.cpp/364
   [ ] How to stop "Server Name" from wrapping in grid header
   [ ] For each From<X> Into WidgetText, add an Option<> blanket impl.
 
-
+[ ] It takes 2 seconds to insert just 200 rows into Servers table. Wrap in a txn
+    to speed it up?
 
 [ ] Fix the exit code in parse_args
 [ ] Consider using r2d2-sqlite for connection pooling. Remove the

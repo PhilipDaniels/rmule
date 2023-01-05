@@ -100,10 +100,10 @@ pub enum ConfigurationCommand {
 #[derive(Debug, Clone)]
 pub enum ConfigurationEvents {
     InitComplete,
-    SettingsChange(Arc<Settings>),
-    AddressListChange(Arc<AddressList>),
-    TempDirectoryListChange(Arc<TempDirectoryList>),
-    ServerListChange(Arc<ServerList>),
+    SettingsChange(Settings),
+    AddressListChange(AddressList),
+    TempDirectoryListChange(TempDirectoryList),
+    ServerListChange(ServerList),
 }
 
 /// This is private to the module: all access is via the handle.
@@ -290,17 +290,26 @@ impl ConfigurationManager {
         }
 
         // Notify everybody of loaded data.
-        // self.events_sender
-        //     .send(ConfigurationEvents::SettingsChange(settings))?;
-        // self.events_sender
-        //     .send(ConfigurationEvents::AddressListChange(address_list))?;
-        // self.events_sender
-        //     .send(ConfigurationEvents::TempDirectoryListChange(temp_dirs))?;
-        // self.events_sender
-        //     .send(ConfigurationEvents::ServerListChange(servers))?;
+        info!("Sending events from CM");
 
-        // // Tell everybody we are done with initial load.
-        // self.events_sender.send(ConfigurationEvents::InitComplete)?;
+        self.events_sender
+            .send(ConfigurationEvents::SettingsChange(self.settings.clone()))?;
+
+        self.events_sender
+            .send(ConfigurationEvents::AddressListChange(
+                self.addresses.clone(),
+            ))?;
+
+        self.events_sender
+            .send(ConfigurationEvents::TempDirectoryListChange(
+                self.temp_dirs.clone(),
+            ))?;
+
+        self.events_sender
+            .send(ConfigurationEvents::ServerListChange(self.servers.clone()))?;
+
+        // Tell everybody we are done with initial load.
+        self.events_sender.send(ConfigurationEvents::InitComplete)?;
 
         Ok(())
     }
@@ -355,7 +364,7 @@ impl ConfigurationManager {
         all_parsed_servers.sort_by(|a, b| a.ip_addr.cmp(&b.ip_addr));
         all_parsed_servers.dedup_by(|a, b| a.ip_addr == b.ip_addr);
 
-        info!("Retrieved {} unique servers", all_parsed_servers.len());
+        info!("Downloaded {} unique servers", all_parsed_servers.len());
 
         Ok(all_parsed_servers)
     }
