@@ -5,26 +5,18 @@ amule.cpp/364
   /455, root user check, skipped for now
   /503 start to create data structures: CStatistics, CClientList, CFriendList, CSearchList etc.
 
-[ ] egui notes
-  - shape.rs: PathShape and Shape: used to create polygons. See eg Shape::convex_polygon() and
-    visual_bounding_rect().
-  - style.rs: see Style struct. visuals is colors. spacing is Spacing...
-  - painter.rs: used for actually drawing. See in particular fade_to_color "used for grayed
-    out interfaces". It also has some primitive painting functions.
-  - ui.rs: has an set_enabled() function.
-[ ] UI
-  [ ] Light mode styling
-  [ ] Toolbar across the top
-  [ ] Display the log
-  [ ] Display a list of servers
+UI TODO
+=======
+[ ] How to stop "Server Name" from wrapping in grid header
+[ ] For each From<X> Into WidgetText, add an Option<> blanket impl.
+[ ] Display the log
+[ ] Icon buttons for the toolbar
+[ ] Spacing/striping in the server list
 
-[ ] UI 2
-  [ ] How to stop "Server Name" from wrapping in grid header
-  [ ] For each From<X> Into WidgetText, add an Option<> blanket impl.
-
-[ ] It takes 2 seconds to insert just 200 rows into Servers table. Wrap in a txn
-    to speed it up?
-
+Small Things TODO
+=================
+[ ] It takes 2 seconds to insert just 200 rows into Servers table. Wrap
+    in a txn to speed it up?
 [ ] Fix the exit code in parse_args
 [ ] Consider using r2d2-sqlite for connection pooling. Remove the
     stored connection in the ConfigurationManager.
@@ -32,10 +24,17 @@ amule.cpp/364
         so that a connection can be passed in, but generated if None
         is passed - enables connection reuse.
 [ ] Signal handling
+
+Big Things TODO
+===============
 [ ] Connect to server
 [ ] Run a search
-[ ] Allow multiple temp dirs. To point to the same location
-[ ] Delete temp db if it becomes empty
+[ ] Allow multiple temp dirs to point to the same location
+[ ] Create DbCollection and DbEntity traits (load_all, delete_all, insert, update etc.)
+
+Future Ideas
+============
+[ ] Delete a temp db (sqlite file) if it becomes empty
 [ ] Run as a daemon (PID file needed)
 [ ] Caching.
   [ ] X minutes.
@@ -43,6 +42,14 @@ amule.cpp/364
       thing to the destination without needing to write to db first.
   [ ] Allow files to be held for preview without actually writing them out to disk first
 
+Egui Notes
+==========
+- shape.rs: PathShape and Shape: used to create polygons. See eg
+  Shape::convex_polygon() and visual_bounding_rect().
+- style.rs: see Style struct. visuals is colors. spacing is Spacing...
+- painter.rs: used for actually drawing. See in particular fade_to_color "used for grayed
+  out interfaces". It also has some primitive painting functions.
+- ui.rs: has an set_enabled() function.
 
 Split
 =====
@@ -58,33 +65,6 @@ Split
 - will eventually need to add arg to specify rmuled's  ip:port
 - gui DOES require single instance, but can have multiple windows
 
-
-
-pub trait DbCollection {
-  load_all();
-  save_all();
-  delete_all();
-}
-
-pub trait DbRow {
-  insert();
-  update();
-  upsert();
-  delete();
-}
-
-
-#[rustfmt::skip]
-
-
-
-
-# Timeline
-1. Do not commence network calls until all init is complete.
-2. Load Configuration Manager from db.
-3. Emit ConfigurationLoaded.
-4. Begin auto-update of server list.
-5. Emit ConfigurationFinished.
 
 # Main crates used
 - [rusqlite](https://crates.io/crates/rusqlite) rMule stores its configuration in a SQLite database, and the temporary
