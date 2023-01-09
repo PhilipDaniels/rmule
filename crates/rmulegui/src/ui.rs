@@ -154,6 +154,13 @@ impl eframe::App for TheApp {
 
         self.status_bar(ctx);
 
+        // This call fixes the problem with "UI not redisplayed unless
+        // the mouse is moved" problem. However, it might cause excessive
+        // CPU usage. See https://www.reddit.com/r/rust/comments/we84ch/how_do_i_comunicate_with_an_egui_app/
+        // for a better fix (both the frame and the ctx can be cloned
+        // and moved to other threads.)
+        ctx.request_repaint();
+
         // egui::CentralPanel::default().show(ctx, |ui| {
         //     ui.heading("My egui Application");
         //     ui.horizontal(|ui| {
