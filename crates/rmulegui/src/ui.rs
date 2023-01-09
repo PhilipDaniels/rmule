@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use eframe::{egui, Theme};
+use eframe::{egui, CreationContext, Theme};
 use egui_extras::{Column, TableBuilder};
 use rmule::configuration::ConfigurationEventReceiver;
 use rmule::Engine;
@@ -15,12 +15,12 @@ pub fn show_main_window(engine: Engine) {
         ..Default::default()
     };
 
-    //engine.start().await;
-
+    // cc: CreationContext gives us the hook we need to do one-time
+    // setup.
     eframe::run_native(
         "rMule",
         options,
-        Box::new(|_cc| Box::new(TheApp::new(engine))),
+        Box::new(|cc| Box::new(TheApp::new(engine, cc))),
     )
 }
 
@@ -34,7 +34,6 @@ enum CurrentTab {
 /// TheApp represents the data structures necessary to support the UI.
 /// It holds the Engine, which contains the "heart" of the program.
 struct TheApp {
-    first_run: bool,
     engine: Engine,
     cfg_mgr_receiver: ConfigurationEventReceiver,
     current_tab: CurrentTab,
@@ -42,16 +41,31 @@ struct TheApp {
 }
 
 impl TheApp {
-    fn new(engine: Engine) -> Self {
+    fn new(engine: Engine, cc: &CreationContext) -> Self {
+        Self::spawn_background_thread_to_refresh_ui(cc.egui_ctx.clone());
+
         let cfg_mgr_receiver = engine.configuration_manager_handle().subscribe_to_events();
 
         Self {
-            first_run: true,
             engine,
             cfg_mgr_receiver,
             current_tab: CurrentTab::Networks,
             servers: Vec::new(),
         }
+    }
+
+    /// Pump the event loop (i.e. redraw the screen at least every 50 ms).
+    /// We need to do this to ensure we update the UI in response to events
+    /// being received from the Engine. Otherwise it doesn't update because
+    /// we only poll for events in the update() method!
+    /// Based on https://www.reddit.com/r/rust/comments/we84ch/how_do_i_comunicate_with_an_egui_app/
+    /// but refactored heavily once I discovered CreationContext...it's actually
+    /// mentioned in the eframe docs.rs main page!
+    fn spawn_background_thread_to_refresh_ui(ctx: egui::Context) {
+        std::thread::spawn(move || loop {
+            std::thread::sleep(Duration::from_millis(50));
+            ctx.request_repaint();
+        });
     }
 
     /// Construct the toolbar at the top of the window.
@@ -131,22 +145,6 @@ impl TheApp {
         });
     }
 
-    /// Pump the event loop (i.e. redraw the screen at least every 50 ms).
-    /// We need to do this to ensure we update the UI in response to events
-    /// being received from the Engine. Otherwise it doesn't update because
-    /// we only poll for events in the update() method!
-    /// Based on https://www.reddit.com/r/rust/comments/we84ch/how_do_i_comunicate_with_an_egui_app/
-    fn maybe_spawn_background_thread_to_refresh_ui(&mut self, ctx: &egui::Context) {
-        if self.first_run {
-            let ctx2 = ctx.clone();
-            self.first_run = false;
-            std::thread::spawn(move || loop {
-                std::thread::sleep(Duration::from_millis(50));
-                ctx2.request_repaint();
-            });
-        }
-    }
-
     fn receive_engine_events(&mut self) {
         if let Ok(evt) = self.cfg_mgr_receiver.try_recv() {
             use rmule::configuration::ConfigurationEvents::*;
@@ -164,7 +162,6 @@ impl TheApp {
 
 impl eframe::App for TheApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.maybe_spawn_background_thread_to_refresh_ui(ctx);
         self.receive_engine_events();
 
         self.toolbar(ctx);
