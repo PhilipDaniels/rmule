@@ -1,9 +1,3 @@
-use eframe::egui::{
-    widgets, Response, Sense, TextStyle, Widget, WidgetInfo, WidgetText, WidgetType,
-};
-use eframe::emath::NumExt;
-use eframe::epaint::{pos2, Rect, Vec2};
-
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct ServerList {
     servers: Vec<rmule::configuration::Server>,

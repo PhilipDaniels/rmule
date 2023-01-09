@@ -117,8 +117,10 @@ impl ServerList {
         info!("Updated {num_updated} existing servers, created {num_inserted} new ones (RAM only)");
     }
 
-    pub fn save_all(&mut self, conn: &Connection) -> Result<()> {
-        let mut insert_stmt = conn.prepare(
+    pub fn save_all(&mut self, conn: &mut Connection) -> Result<()> {
+        let txn = conn.transaction().unwrap();
+
+        let mut insert_stmt = txn.prepare(
             r#"INSERT INTO server
                   (
                   created, updated,
@@ -138,7 +140,7 @@ impl ServerList {
                   )"#,
         )?;
 
-        let mut update_stmt = conn.prepare(
+        let mut update_stmt = txn.prepare(
             r#"UPDATE server SET
                 updated = ?1,
                 source = ?2,
@@ -178,7 +180,7 @@ impl ServerList {
             if server.id == 0 {
                 server.created = now;
                 server.updated = now;
-                let id = Self::insert_server(conn, &mut insert_stmt, server)?;
+                let id = Self::insert_server(&*txn, &mut insert_stmt, server)?;
                 server.id = id;
                 num_inserted += 1;
             } else {
@@ -187,6 +189,11 @@ impl ServerList {
                 num_updated += 1;
             }
         }
+
+        drop(insert_stmt);
+        drop(update_stmt);
+
+        txn.commit()?;
 
         info!("Updated {num_updated} and inserted {num_inserted} rows to the servers table");
 

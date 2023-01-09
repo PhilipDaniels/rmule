@@ -8,7 +8,6 @@ use reqwest::Client;
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use std::cell::{Ref, RefCell};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tracing::{info, warn};
@@ -290,7 +289,7 @@ impl ConfigurationManager {
         }
 
         // Notify everybody of loaded data.
-        info!("Sending events from CM");
+        info!("Sending initial change events");
 
         self.events_sender
             .send(ConfigurationEvents::SettingsChange(self.settings.clone()))?;
@@ -319,8 +318,8 @@ impl ConfigurationManager {
     fn auto_update_server_list(&mut self, addresses: &Vec<String>) -> Result<()> {
         let download_servers = self.download_servers(addresses)?;
         self.servers.merge_parsed_servers(&download_servers);
-        let conn = self.conn.borrow();
-        self.servers.save_all(&conn)?;
+        let mut conn = self.conn.borrow_mut();
+        self.servers.save_all(&mut conn)?;
         Ok(())
     }
 

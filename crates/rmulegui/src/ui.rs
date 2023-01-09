@@ -70,6 +70,8 @@ impl TheApp {
                         .send_command_blocking(rmule::configuration::ConfigurationCommand::Start)
                         .unwrap();
                     info!("Starting PRESSED");
+                    // DOES NOT WORK:
+                    // ctx.request_repaint_after(Duration::from_millis(100));
                 }
             });
         });
@@ -131,12 +133,11 @@ impl TheApp {
 
             match evt {
                 InitComplete => info!("Got InitComplete"),
-                SettingsChange(settings) => info!("Got settings"),
-                AddressListChange(addr_list) => info!("Got addr list"),
-                TempDirectoryListChange(temp_dir_list) => info!("Got temp dir list"),
+                SettingsChange(_settings) => info!("Got settings"),
+                AddressListChange(_addr_list) => info!("Got addr list"),
+                TempDirectoryListChange(_temp_dir_list) => info!("Got temp dir list"),
                 ServerListChange(server_list) => self.servers = server_list.into_iter().collect(),
             }
-            info!("Got an event!!!!!")
         }
     }
 }
