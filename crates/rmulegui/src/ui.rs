@@ -1,22 +1,18 @@
-use std::time::Duration;
-
+use crate::widgets::toolbar_button::ToolbarButton;
 use eframe::{egui, CreationContext, Theme};
 use egui_extras::{Column, TableBuilder};
 use rmule::configuration::ConfigurationEventReceiver;
 use rmule::Engine;
+use std::time::Duration;
 use tracing::info;
-
-use crate::widgets::toolbar_button::ToolbarButton;
 
 pub fn show_main_window(engine: Engine) {
     let options = eframe::NativeOptions {
-        //initial_window_size: Some(vec2(320.0, 240.0)),
         default_theme: Theme::Light,
         ..Default::default()
     };
 
-    // cc: CreationContext gives us the hook we need to do one-time
-    // setup.
+    // cc: CreationContext gives us the hook we need to do one-time setup.
     eframe::run_native(
         "rMule",
         options,
@@ -88,8 +84,6 @@ impl TheApp {
                         .send_command_blocking(rmule::configuration::ConfigurationCommand::Start)
                         .unwrap();
                     info!("Starting PRESSED");
-                    // DOES NOT WORK:
-                    // ctx.request_repaint_after(Duration::from_millis(100));
                 }
             });
         });
@@ -171,19 +165,5 @@ impl eframe::App for TheApp {
         }
 
         self.status_bar(ctx);
-
-        // egui::CentralPanel::default().show(ctx, |ui| {
-        //     ui.heading("My egui Application");
-        //     ui.horizontal(|ui| {
-        //         let name_label = ui.label("Your name: ");
-        //         ui.text_edit_singleline(&mut self.name)
-        //             .labelled_by(name_label.id);
-        //     });
-        //     ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
-        //     if ui.button("Click each year").clicked() {
-        //         self.age += 1;
-        //     }
-        //     ui.label(format!("Hello '{}', age {}", self.name, self.age));
-        // });
     }
 }

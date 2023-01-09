@@ -15,8 +15,6 @@ UI TODO
 
 Small Things TODO
 =================
-[ ] It takes 2 seconds to insert just 200 rows into Servers table. Wrap
-    in a txn to speed it up?
 [ ] Fix the exit code in parse_args
 [ ] Consider using r2d2-sqlite for connection pooling. Remove the
     stored connection in the ConfigurationManager.
