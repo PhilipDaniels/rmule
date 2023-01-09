@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use eframe::{egui, Theme};
 use egui_extras::{Column, TableBuilder};
 use rmule::configuration::ConfigurationEventReceiver;
@@ -32,6 +34,7 @@ enum CurrentTab {
 /// TheApp represents the data structures necessary to support the UI.
 /// It holds the Engine, which contains the "heart" of the program.
 struct TheApp {
+    first_run: bool,
     engine: Engine,
     cfg_mgr_receiver: ConfigurationEventReceiver,
     current_tab: CurrentTab,
@@ -43,6 +46,7 @@ impl TheApp {
         let cfg_mgr_receiver = engine.configuration_manager_handle().subscribe_to_events();
 
         Self {
+            first_run: true,
             engine,
             cfg_mgr_receiver,
             current_tab: CurrentTab::Networks,
@@ -127,6 +131,22 @@ impl TheApp {
         });
     }
 
+    /// Pump the event loop (i.e. redraw the screen at least every 50 ms).
+    /// We need to do this to ensure we update the UI in response to events
+    /// being received from the Engine. Otherwise it doesn't update because
+    /// we only poll for events in the update() method!
+    /// Based on https://www.reddit.com/r/rust/comments/we84ch/how_do_i_comunicate_with_an_egui_app/
+    fn maybe_spawn_background_thread_to_refresh_ui(&mut self, ctx: &egui::Context) {
+        if self.first_run {
+            let ctx2 = ctx.clone();
+            self.first_run = false;
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_millis(50));
+                ctx2.request_repaint();
+            });
+        }
+    }
+
     fn receive_engine_events(&mut self) {
         if let Ok(evt) = self.cfg_mgr_receiver.try_recv() {
             use rmule::configuration::ConfigurationEvents::*;
@@ -144,6 +164,7 @@ impl TheApp {
 
 impl eframe::App for TheApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.maybe_spawn_background_thread_to_refresh_ui(ctx);
         self.receive_engine_events();
 
         self.toolbar(ctx);
@@ -153,13 +174,6 @@ impl eframe::App for TheApp {
         }
 
         self.status_bar(ctx);
-
-        // This call fixes the problem with "UI not redisplayed unless
-        // the mouse is moved" problem. However, it might cause excessive
-        // CPU usage. See https://www.reddit.com/r/rust/comments/we84ch/how_do_i_comunicate_with_an_egui_app/
-        // for a better fix (both the frame and the ctx can be cloned
-        // and moved to other threads.)
-        ctx.request_repaint();
 
         // egui::CentralPanel::default().show(ctx, |ui| {
         //     ui.heading("My egui Application");
