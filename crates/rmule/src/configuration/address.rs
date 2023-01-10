@@ -59,17 +59,17 @@ impl AddressList {
     /// Inserts a reasonable set of default addresses.
     pub fn insert_default_addresses(&mut self, conn: &Connection) -> Result<()> {
         #[rustfmt::skip]
-        const DEFAULT_ADDRESSES: [(&str, &str); 10] = [
+        const DEFAULT_ADDRESSES: [(&str, &str); 1] = [
             ("http://upd.emule-security.org/server.met", "DEFAULT RMULE ADDRESS"),
-            ("http://www.gruk.org/server.met.gz", "DEFAULT RMULE ADDRESS"),
-            ("http://peerates.net/server.met", "DEFAULT RMULE ADDRESS)"),
-            ("http://shortypower.dyndns.org/server.met", "DEFAULT RMULE ADDRESS"),
-            ("http://www.server-met.de/dl.php?load=gz", "DEFAULT RMULE ADDRESS, Curated (best) from this site"),
-            ("http://www.server-met.de/dl.php?load=min", "DEFAULT RMULE ADDRESS, Curated (medium) from this site"),
-            ("http://www.server-met.de/dl.php?load=max", "DEFAULT ARMULE DDRESS, Curated (All) from this site"),
-            ("http://ed2k.2x4u.de/v1s4vbaf/micro/server.met", "DEFAULT RMULE ADDRESS, Curated (Connect List) from this site"),
-            ("http://ed2k.2x4u.de/v1s4vbaf/min/server.met", "DEFAULT RMULE ADDRESS, Curated (Best) from this site"),
-            ("http://ed2k.2x4u.de/v1s4vbaf/max/server.met", "DEFAULT RMULE ADDRESS, Curated (All) from this site"),
+            // ("http://www.gruk.org/server.met.gz", "DEFAULT RMULE ADDRESS"),
+            // ("http://peerates.net/server.met", "DEFAULT RMULE ADDRESS)"),
+            // ("http://shortypower.dyndns.org/server.met", "DEFAULT RMULE ADDRESS"),
+            // ("http://www.server-met.de/dl.php?load=gz", "DEFAULT RMULE ADDRESS, Curated (best) from this site"),
+            // ("http://www.server-met.de/dl.php?load=min", "DEFAULT RMULE ADDRESS, Curated (medium) from this site"),
+            // ("http://www.server-met.de/dl.php?load=max", "DEFAULT ARMULE DDRESS, Curated (All) from this site"),
+            // ("http://ed2k.2x4u.de/v1s4vbaf/micro/server.met", "DEFAULT RMULE ADDRESS, Curated (Connect List) from this site"),
+            // ("http://ed2k.2x4u.de/v1s4vbaf/min/server.met", "DEFAULT RMULE ADDRESS, Curated (Best) from this site"),
+            // ("http://ed2k.2x4u.de/v1s4vbaf/max/server.met", "DEFAULT RMULE ADDRESS, Curated (All) from this site"),
         ];
 
         info!("Inserting reasonable default addresses (as of Dec 2022)");
